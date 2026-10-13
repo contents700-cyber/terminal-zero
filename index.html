@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TERMINAL ZERO | Multi-Chain DEX Screener (ETH, SOL, BSC, BASE, HOOD)</title>
+  <title>TERMINAL ZERO | Deep Token Intelligence & Multi-Chain DEX Screener</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & ReactDOM -->
@@ -13,173 +13,346 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     body { margin: 0; background-color: #09090b; color: #f4f4f5; overflow: hidden; user-select: none; }
-    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: #09090b; }
     ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100">
+<body class="bg-zinc-950 text-zinc-100 font-sans">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
     const CHAINS = {
-      ETH: { name: 'Ethereum', symbol: 'ETH', mevEngine: 'Flashbots Protect (MEV-Share)', avgBlock: '12.0s', badge: 'border-indigo-500/40 text-indigo-400' },
+      ETH: { name: 'Ethereum', symbol: 'ETH', mevEngine: 'Flashbots Protect', avgBlock: '12.0s', badge: 'border-indigo-500/40 text-indigo-400' },
       SOL: { name: 'Solana', symbol: 'SOL', mevEngine: 'Jito Bundle Engine', avgBlock: '400ms', badge: 'border-emerald-500/40 text-emerald-400' },
       BSC: { name: 'BNB Chain', symbol: 'BNB', mevEngine: 'BloXroute FastRPC', avgBlock: '3.0s', badge: 'border-amber-500/40 text-amber-400' },
       ROBINHOOD: { name: 'Robinhood L2', symbol: 'ETH', mevEngine: 'Orbit Sequencer Direct', avgBlock: '100ms', badge: 'border-emerald-500/40 text-emerald-400' },
       BASE: { name: 'Base', symbol: 'ETH', mevEngine: 'Flashbots Relay', avgBlock: '2.0s', badge: 'border-blue-500/40 text-blue-400' }
     };
 
-    // 125 TOTAL PAIRS (25 PER CHAIN)
+    // RICH TOKEN REGISTRY WITH COMPREHENSIVE DOSSIERS, ATH/ATL, CREATION DATES, AND SOCIALS
     const TOKEN_REGISTRY = {
       ETH: [
-        { symbol: 'PEPE', name: 'Pepe', pair: 'PEPE/WETH', price: 0.0000098, change24h: 18.4, vol24h: 142.0, csr: 3.2 },
-        { symbol: 'SHIB', name: 'Shiba Inu', pair: 'SHIB/WETH', price: 0.0000178, change24h: 4.2, vol24h: 88.5, csr: 1.1 },
-        { symbol: 'UNI', name: 'Uniswap', pair: 'UNI/WETH', price: 7.85, change24h: 2.9, vol24h: 42.0, csr: 0.2 },
-        { symbol: 'LINK', name: 'Chainlink', pair: 'LINK/WETH', price: 11.40, change24h: 5.6, vol24h: 56.4, csr: 0.4 },
-        { symbol: 'AAVE', name: 'Aave', pair: 'AAVE/WETH', price: 154.20, change24h: 8.1, vol24h: 62.0, csr: 0.3 },
-        { symbol: 'MKR', name: 'Maker', pair: 'MKR/WETH', price: 1280.00, change24h: -1.4, vol24h: 28.5, csr: 0.1 },
-        { symbol: 'PENDLE', name: 'Pendle Finance', pair: 'PENDLE/WETH', price: 4.82, change24h: 12.8, vol24h: 31.4, csr: 1.5 },
-        { symbol: 'ENA', name: 'Ethena', pair: 'ENA/USDT', price: 0.38, change24h: 14.2, vol24h: 45.0, csr: 2.1 },
-        { symbol: 'FET', name: 'Artificial Superintelligence', pair: 'FET/WETH', price: 1.42, change24h: 7.3, vol24h: 38.6, csr: 1.8 },
-        { symbol: 'MOG', name: 'Mog Coin', pair: 'MOG/WETH', price: 0.00000192, change24h: 26.5, vol24h: 24.0, csr: 8.4 },
-        { symbol: 'SPX', name: 'SPX6900', pair: 'SPX/WETH', price: 0.78, change24h: 41.2, vol24h: 54.0, csr: 6.8 },
-        { symbol: 'TURBO', name: 'Turbo Token', pair: 'TURBO/WETH', price: 0.0094, change24h: -6.2, vol24h: 19.5, csr: 4.2 },
-        { symbol: 'LDO', name: 'Lido DAO', pair: 'LDO/WETH', price: 1.18, change24h: 3.0, vol24h: 21.0, csr: 0.5 },
-        { symbol: 'CRV', name: 'Curve DAO', pair: 'CRV/WETH', price: 0.28, change24h: 1.4, vol24h: 12.4, csr: 0.8 },
-        { symbol: 'SNX', name: 'Synthetix', pair: 'SNX/WETH', price: 1.45, change24h: -2.0, vol24h: 9.8, csr: 0.6 },
-        { symbol: 'BLUR', name: 'Blur', pair: 'BLUR/WETH', price: 0.24, change24h: 4.8, vol24h: 14.1, csr: 1.9 },
-        { symbol: 'COMP', name: 'Compound', pair: 'COMP/WETH', price: 48.50, change24h: 2.2, vol24h: 8.6, csr: 0.4 },
-        { symbol: 'ENS', name: 'Ethereum Name Service', pair: 'ENS/WETH', price: 17.20, change24h: 6.9, vol24h: 18.2, csr: 0.9 },
-        { symbol: '1INCH', name: '1inch Network', pair: '1INCH/WETH', price: 0.26, change24h: -0.8, vol24h: 6.5, csr: 0.7 },
-        { symbol: 'SUSHI', name: 'SushiSwap', pair: 'SUSHI/WETH', price: 0.74, change24h: 3.5, vol24h: 7.2, csr: 0.5 },
-        { symbol: 'NEIRO-ETH', name: 'First Neiro on Ethereum', pair: 'NEIRO/WETH', price: 0.00185, change24h: 32.4, vol24h: 46.0, csr: 7.5 },
-        { symbol: 'WOO', name: 'WOO Network', pair: 'WOO/WETH', price: 0.18, change24h: 1.5, vol24h: 5.4, csr: 1.0 },
-        { symbol: 'FXS', name: 'Frax Share', pair: 'FXS/WETH', price: 2.15, change24h: 0.4, vol24h: 3.8, csr: 0.6 },
-        { symbol: 'GNO', name: 'Gnosis', pair: 'GNO/WETH', price: 178.00, change24h: 1.9, vol24h: 4.2, csr: 0.3 },
-        { symbol: 'DYDX', name: 'dYdX', pair: 'DYDX/WETH', price: 0.92, change24h: 5.1, vol24h: 11.0, csr: 0.8 }
+        { 
+          symbol: 'PEPE', 
+          name: 'Pepe the Frog', 
+          pair: 'PEPE/WETH', 
+          price: 0.0000098, 
+          change24h: 18.4, 
+          vol24h: 142.0, 
+          csr: 3.2,
+          createdDate: 'April 14, 2023',
+          age: '3+ Years',
+          ath: 0.0000171,
+          athDate: 'May 27, 2024',
+          athDrawdown: '-42.7%',
+          atl: 0.000000055,
+          atlDate: 'April 18, 2023',
+          atlGain: '+17,700%',
+          contract: '0x6982508145454Ce325dDbE47a25d4ec3d2311933',
+          supply: '420.69 Trillion',
+          fdv: '$4.12 Billion',
+          socials: {
+            twitter: 'https://twitter.com/pepecoineth',
+            telegram: 'https://t.me/pepecoineth',
+            website: 'https://pepe.vip',
+            docs: 'https://pepe.vip/about'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png',
+          about: 'Pepe is an iconic decentralized cultural memecoin launched on Ethereum with zero transaction taxes, burned liquidity pool tokens, and renounced contract ownership. Designed as a pure tribute to the widely recognized internet meme created by Matt Furie.',
+          tags: ['Meme', 'Zero Tax', 'Pure Community', 'Proof of Culture']
+        },
+        { 
+          symbol: 'SHIB', 
+          name: 'Shiba Inu', 
+          pair: 'SHIB/WETH', 
+          price: 0.0000178, 
+          change24h: 4.2, 
+          vol24h: 88.5, 
+          csr: 1.1,
+          createdDate: 'August 1, 2020',
+          age: '6 Years',
+          ath: 0.0000884,
+          athDate: 'October 28, 2021',
+          athDrawdown: '-79.8%',
+          atl: 0.000000000056,
+          atlDate: 'November 28, 2020',
+          atlGain: '+31,785,000%',
+          contract: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+          supply: '589.5 Trillion',
+          fdv: '$10.49 Billion',
+          socials: {
+            twitter: 'https://twitter.com/Shibtoken',
+            telegram: 'https://t.me/shibainuthedogecoinkiller',
+            website: 'https://shib.io',
+            docs: 'https://shib.io/ecosystem'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE/logo.png',
+          about: 'Shiba Inu is a global decentralized ecosystem token launched anonymously by Ryoshi. It has expanded into Shibarium Layer-2, decentralized exchange ShibaSwap, and community governance.',
+          tags: ['Ecosystem', 'DeFi', 'Layer 2', 'Community']
+        },
+        { 
+          symbol: 'UNI', 
+          name: 'Uniswap Protocol', 
+          pair: 'UNI/WETH', 
+          price: 7.85, 
+          change24h: 2.9, 
+          vol24h: 42.0, 
+          csr: 0.2,
+          createdDate: 'September 17, 2020',
+          age: '6 Years',
+          ath: 44.97,
+          athDate: 'May 3, 2021',
+          athDrawdown: '-82.5%',
+          atl: 1.03,
+          atlDate: 'September 17, 2020',
+          atlGain: '+662%',
+          contract: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+          supply: '1.0 Billion',
+          fdv: '$7.85 Billion',
+          socials: {
+            twitter: 'https://twitter.com/Uniswap',
+            telegram: 'https://t.me/uniswap',
+            website: 'https://uniswap.org',
+            docs: 'https://docs.uniswap.org'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
+          about: 'Uniswap is the standard decentralized automated liquidity protocol governing on-chain trading across Ethereum and rollups.',
+          tags: ['DEX', 'DeFi', 'Governance', 'Blue Chip']
+        },
+        { 
+          symbol: 'PENDLE', 
+          name: 'Pendle Finance', 
+          pair: 'PENDLE/WETH', 
+          price: 4.82, 
+          change24h: 12.8, 
+          vol24h: 31.4, 
+          csr: 1.5,
+          createdDate: 'April 28, 2021',
+          age: '5 Years',
+          ath: 7.52,
+          athDate: 'April 11, 2024',
+          athDrawdown: '-35.9%',
+          atl: 0.033,
+          atlDate: 'November 14, 2022',
+          atlGain: '+14,500%',
+          contract: '0x808507121B80c02388fAd14726482e061B8da827',
+          supply: '258.4 Million',
+          fdv: '$1.24 Billion',
+          socials: {
+            twitter: 'https://twitter.com/pendle_fi',
+            telegram: 'https://t.me/pendlefinance',
+            website: 'https://pendle.finance',
+            docs: 'https://docs.pendle.finance'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1642543492481-44e81e3914a7?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x808507121B80c02388fAd14726482e061B8da827/logo.png',
+          about: 'Pendle enables the tokenization and trading of future yields via an innovative AMM supporting yield stripping and fixed-rate strategies.',
+          tags: ['Yield Trading', 'DeFi', 'LST / LRT', 'Derivatives']
+        }
       ],
       SOL: [
-        { symbol: 'ZERO', name: 'Terminal Zero', pair: 'ZERO/SOL', price: 0.0482, change24h: 34.8, vol24h: 4.2, csr: 14.2 },
-        { symbol: 'WIF', name: 'dogwifhat', pair: 'WIF/SOL', price: 2.38, change24h: -4.1, vol24h: 48.9, csr: 2.1 },
-        { symbol: 'BONK', name: 'Bonk', pair: 'BONK/SOL', price: 0.0000214, change24h: 11.2, vol24h: 14.2, csr: 4.8 },
-        { symbol: 'POPCAT', name: 'Popcat', pair: 'POPCAT/SOL', price: 1.42, change24h: 18.4, vol24h: 32.5, csr: 6.5 },
-        { symbol: 'JUP', name: 'Jupiter', pair: 'JUP/SOL', price: 0.94, change24h: 3.1, vol24h: 24.8, csr: 1.2 },
-        { symbol: 'RAY', name: 'Raydium', pair: 'RAY/SOL', price: 1.82, change24h: 8.7, vol24h: 16.4, csr: 0.8 },
-        { symbol: 'PYTH', name: 'Pyth Network', pair: 'PYTH/SOL', price: 0.35, change24h: -1.2, vol24h: 9.2, csr: 0.5 },
-        { symbol: 'BOME', name: 'BOOK OF MEME', pair: 'BOME/SOL', price: 0.0089, change24h: -5.4, vol24h: 12.1, csr: 9.4 },
-        { symbol: 'MEW', name: 'cat in a dogs world', pair: 'MEW/SOL', price: 0.0094, change24h: 14.6, vol24h: 21.0, csr: 7.8 },
-        { symbol: 'ORCA', name: 'Orca Dex', pair: 'ORCA/SOL', price: 2.85, change24h: 4.3, vol24h: 5.6, csr: 0.4 },
-        { symbol: 'RENDER', name: 'Render Token', pair: 'RENDER/SOL', price: 5.40, change24h: 6.8, vol24h: 18.2, csr: 0.2 },
-        { symbol: 'HNT', name: 'Helium', pair: 'HNT/SOL', price: 6.25, change24h: -2.3, vol24h: 7.4, csr: 0.6 },
-        { symbol: 'DRIFT', name: 'Drift Protocol', pair: 'DRIFT/SOL', price: 0.52, change24h: 9.1, vol24h: 6.1, csr: 3.2 },
-        { symbol: 'KMNO', name: 'Kamino Finance', pair: 'KMNO/SOL', price: 0.078, change24h: 2.2, vol24h: 3.8, csr: 1.5 },
-        { symbol: 'WEN', name: 'Wen', pair: 'WEN/SOL', price: 0.00012, change24h: -8.1, vol24h: 4.9, csr: 8.2 },
-        { symbol: 'SAMO', name: 'Samoyedcoin', pair: 'SAMO/SOL', price: 0.0098, change24h: 5.0, vol24h: 2.1, csr: 5.5 },
-        { symbol: 'MYRO', name: 'Myro', pair: 'MYRO/SOL', price: 0.118, change24h: -3.6, vol24h: 5.4, csr: 11.2 },
-        { symbol: 'MOTHER', name: 'Mother Iggy', pair: 'MOTHER/SOL', price: 0.062, change24h: 22.4, vol24h: 8.9, csr: 13.5 },
-        { symbol: 'DADDY', name: 'Daddy Tate', pair: 'DADDY/SOL', price: 0.074, change24h: -6.4, vol24h: 6.2, csr: 16.8 },
-        { symbol: 'SLERF', name: 'Slerf', pair: 'SLERF/SOL', price: 0.165, change24h: 4.1, vol24h: 4.3, csr: 12.0 },
-        { symbol: 'GIGA', name: 'GigaChad', pair: 'GIGA/SOL', price: 0.048, change24h: 28.5, vol24h: 15.6, csr: 9.1 },
-        { symbol: 'FWOG', name: 'Fwog', pair: 'FWOG/SOL', price: 0.28, change24h: 17.2, vol24h: 19.4, csr: 8.4 },
-        { symbol: 'MOODENG', name: 'Moo Deng', pair: 'MOODENG/SOL', price: 0.185, change24h: 42.1, vol24h: 26.8, csr: 14.5 },
-        { symbol: 'GOAT', name: 'Goatseus Maximus', pair: 'GOAT/SOL', price: 0.62, change24h: 54.0, vol24h: 48.0, csr: 11.0 },
-        { symbol: 'ACT', name: 'Act I : The AI Prophecy', pair: 'ACT/SOL', price: 0.44, change24h: 31.2, vol24h: 35.0, csr: 10.2 }
+        { 
+          symbol: 'ZERO', 
+          name: 'Terminal Zero', 
+          pair: 'ZERO/SOL', 
+          price: 0.0482, 
+          change24h: 34.8, 
+          vol24h: 4.2, 
+          csr: 14.2,
+          createdDate: 'October 12, 2026',
+          age: 'Genesis Phase',
+          ath: 0.052,
+          athDate: 'Today',
+          athDrawdown: '-7.3%',
+          atl: 0.008,
+          atlDate: 'Launch',
+          atlGain: '+502%',
+          contract: 'Zero111111111111111111111111111111111111111',
+          supply: '1.0 Billion',
+          fdv: '$48.2 Million',
+          socials: {
+            twitter: 'https://twitter.com',
+            telegram: 'https://t.me',
+            website: 'https://terminalzero.fi',
+            docs: 'https://docs.terminalzero.fi'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+          about: 'Terminal Zero is the ultra-low latency multi-chain terminal combining forensic anti-cabal clustering, direct MEV block engine execution, and sub-100ms real-time charting.',
+          tags: ['Terminal Utility', 'Trading Bot', 'Anti-MEV', 'Forensics']
+        },
+        { 
+          symbol: 'WIF', 
+          name: 'dogwifhat', 
+          pair: 'WIF/SOL', 
+          price: 2.38, 
+          change24h: -4.1, 
+          vol24h: 48.9, 
+          csr: 2.1,
+          createdDate: 'November 20, 2023',
+          age: '3 Years',
+          ath: 4.85,
+          athDate: 'March 31, 2024',
+          athDrawdown: '-50.9%',
+          atl: 0.0015,
+          atlDate: 'December 13, 2023',
+          atlGain: '+158,560%',
+          contract: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+          supply: '998.9 Million',
+          fdv: '$2.38 Billion',
+          socials: {
+            twitter: 'https://twitter.com/dogwifcoin',
+            telegram: 'https://t.me/dogwifcoin',
+            website: 'https://dogwifcoin.org',
+            docs: 'https://dogwifcoin.org'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm/logo.png',
+          about: 'dogwifhat is a cultural titan born on Solana depicting a Shiba pup sporting a knit pink beanie hat. Completely community run with zero dev allocation.',
+          tags: ['Solana Meme', 'Community', 'Zero Tax']
+        }
       ],
       BSC: [
-        { symbol: 'FOUR', name: 'Four Meme', pair: 'FOUR/WBNB', price: 0.0084, change24h: 52.4, vol24h: 2.1, csr: 8.4 },
-        { symbol: 'CAKE', name: 'PancakeSwap', pair: 'CAKE/USDT', price: 2.45, change24h: 1.8, vol24h: 18.5, csr: 0.5 },
-        { symbol: 'BABYBNB', name: 'Baby BNB', pair: 'BABYBNB/WBNB', price: 0.00000042, change24h: -12.4, vol24h: 0.84, csr: 38.6 },
-        { symbol: 'FLOKI', name: 'Floki Inu', pair: 'FLOKI/WBNB', price: 0.000155, change24h: 7.8, vol24h: 22.4, csr: 2.3 },
-        { symbol: 'BAKE', name: 'BakeryToken', pair: 'BAKE/WBNB', price: 0.24, change24h: -3.2, vol24h: 3.1, csr: 1.1 },
-        { symbol: 'XVS', name: 'Venus Protocol', pair: 'XVS/USDT', price: 7.20, change24h: 4.1, vol24h: 6.8, csr: 0.4 },
-        { symbol: 'BNX', name: 'BinaryX', pair: 'BNX/USDT', price: 0.62, change24h: 11.4, vol24h: 14.2, csr: 1.8 },
-        { symbol: 'TWT', name: 'Trust Wallet Token', pair: 'TWT/USDT', price: 0.98, change24h: 2.0, vol24h: 5.4, csr: 0.3 },
-        { symbol: 'BSW', name: 'Biswap', pair: 'BSW/WBNB', price: 0.064, change24h: -1.5, vol24h: 1.8, csr: 1.0 },
-        { symbol: 'ALPACA', name: 'Alpaca Finance', pair: 'ALPACA/WBNB', price: 0.16, change24h: 6.5, vol24h: 2.4, csr: 0.8 },
-        { symbol: 'CHESS', name: 'Tranchess', pair: 'CHESS/USDT', price: 0.18, change24h: -2.1, vol24h: 1.1, csr: 0.7 },
-        { symbol: 'THE', name: 'THENA DEX', pair: 'THE/WBNB', price: 0.22, change24h: 15.3, vol24h: 3.9, csr: 4.2 },
-        { symbol: 'ID', name: 'SPACE ID', pair: 'ID/USDT', price: 0.41, change24h: 3.8, vol24h: 8.5, csr: 1.4 },
-        { symbol: 'MBOX', name: 'MOBOX', pair: 'MBOX/USDT', price: 0.17, change24h: -4.0, vol24h: 2.6, csr: 1.9 },
-        { symbol: 'CATI', name: 'Catizen BSC', pair: 'CATI/USDT', price: 0.45, change24h: 8.9, vol24h: 11.3, csr: 3.5 },
-        { symbol: 'DOGS', name: 'Dogs BSC Bridge', pair: 'DOGS/USDT', price: 0.00068, change24h: -5.2, vol24h: 9.8, csr: 2.8 },
-        { symbol: 'HAMSTER', name: 'Hamster Kombat BSC', pair: 'HMSTR/USDT', price: 0.0034, change24h: -8.4, vol24h: 7.2, csr: 4.1 },
-        { symbol: 'NOT', name: 'Notcoin Bridge', pair: 'NOT/USDT', price: 0.0075, change24h: 4.6, vol24h: 12.0, csr: 1.5 },
-        { symbol: 'QUICK', name: 'QuickSwap BSC', pair: 'QUICK/USDT', price: 0.042, change24h: 1.2, vol24h: 1.5, csr: 0.9 },
-        { symbol: 'BEL', name: 'Bella Protocol', pair: 'BEL/USDT', price: 0.58, change24h: 9.4, vol24h: 4.2, csr: 1.7 },
-        { symbol: 'SFP', name: 'SafePal', pair: 'SFP/USDT', price: 0.71, change24h: 0.8, vol24h: 2.9, csr: 0.4 },
-        { symbol: 'C98', name: 'Coin98', pair: 'C98/USDT', price: 0.14, change24h: 3.3, vol24h: 3.2, csr: 0.6 },
-        { symbol: 'WRX', name: 'WazirX', pair: 'WRX/USDT', price: 0.13, change24h: -6.1, vol24h: 1.4, csr: 2.2 },
-        { symbol: 'MDX', name: 'Mdex BSC', pair: 'MDX/WBNB', price: 0.016, change24h: -1.1, vol24h: 0.6, csr: 1.3 },
-        { symbol: 'HIGH', name: 'Highstreet', pair: 'HIGH/USDT', price: 1.48, change24h: 7.2, vol24h: 5.1, csr: 2.0 }
+        { 
+          symbol: 'FOUR', 
+          name: 'Four Meme', 
+          pair: 'FOUR/WBNB', 
+          price: 0.0084, 
+          change24h: 52.4, 
+          vol24h: 2.1, 
+          csr: 8.4,
+          createdDate: 'August 15, 2024',
+          age: '2+ Years',
+          ath: 0.0125,
+          athDate: 'September 2024',
+          athDrawdown: '-32.8%',
+          atl: 0.0008,
+          atlDate: 'August 2024',
+          atlGain: '+950%',
+          contract: '0x4444444444444444444444444444444444444444',
+          supply: '1.0 Billion',
+          fdv: '$8.4 Million',
+          socials: {
+            twitter: 'https://twitter.com/four_meme',
+            telegram: 'https://t.me/fourmeme',
+            website: 'https://four.meme',
+            docs: 'https://docs.four.meme'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?w=150&auto=format&fit=crop&q=80',
+          about: 'Four.meme is the native BSC launchpad and bonding curve protocol tailored for fair-launch micro-cap tokens.',
+          tags: ['Launchpad', 'BSC DeFi', 'Fair Launch']
+        }
       ],
       ROBINHOOD: [
-        { symbol: 'ROBIN', name: 'Robin Protocol', pair: 'ROBIN/ETH', price: 1.24, change24h: 88.5, vol24h: 6.4, csr: 6.2 },
-        { symbol: 'TSLAx', name: 'Tesla Tokenized RWA', pair: 'TSLAx/USDC', price: 242.15, change24h: 3.2, vol24h: 21.5, csr: 0.0 },
-        { symbol: 'NVDAx', name: 'Nvidia Tokenized RWA', pair: 'NVDAx/USDC', price: 134.80, change24h: 5.6, vol24h: 38.2, csr: 0.0 },
-        { symbol: 'AAPLx', name: 'Apple Tokenized RWA', pair: 'AAPLx/USDC', price: 228.40, change24h: 1.4, vol24h: 18.4, csr: 0.0 },
-        { symbol: 'MSFTx', name: 'Microsoft Tokenized RWA', pair: 'MSFTx/USDC', price: 418.90, change24h: 2.1, vol24h: 14.6, csr: 0.0 },
-        { symbol: 'AMZNx', name: 'Amazon Tokenized RWA', pair: 'AMZNx/USDC', price: 186.50, change24h: 4.0, vol24h: 16.2, csr: 0.0 },
-        { symbol: 'HOODIE', name: 'Hoodie Culture', pair: 'HOODIE/ETH', price: 0.019, change24h: -8.5, vol24h: 0.42, csr: 29.4 },
-        { symbol: 'COINx', name: 'Coinbase Tokenized RWA', pair: 'COINx/USDC', price: 212.00, change24h: 9.8, vol24h: 24.1, csr: 0.0 },
-        { symbol: 'MSTRx', name: 'MicroStrategy RWA', pair: 'MSTRx/USDC', price: 194.20, change24h: 16.4, vol24h: 31.0, csr: 0.0 },
-        { symbol: 'PLTRx', name: 'Palantir Tokenized RWA', pair: 'PLTRx/USDC', price: 42.80, change24h: 12.5, vol24h: 19.8, csr: 0.0 },
-        { symbol: 'HOODx', name: 'Robinhood Markets RWA', pair: 'HOODx/USDC', price: 26.50, change24h: 6.7, vol24h: 11.2, csr: 0.0 },
-        { symbol: 'ORBIT', name: 'Orbit Velocity', pair: 'ORBIT/ETH', price: 0.38, change24h: 24.2, vol24h: 3.8, csr: 7.1 },
-        { symbol: 'SHERIFF', name: 'Sheriff Nottingham', pair: 'SHERIFF/ETH', price: 0.0048, change24h: 41.0, vol24h: 1.9, csr: 18.5 },
-        { symbol: 'MARAx', name: 'MARA Holdings RWA', pair: 'MARAx/USDC', price: 18.10, change24h: 8.2, vol24h: 8.4, csr: 0.0 },
-        { symbol: 'RIOTx', name: 'Riot Platforms RWA', pair: 'RIOTx/USDC', price: 9.40, change24h: 5.1, vol24h: 5.2, csr: 0.0 },
-        { symbol: 'METAx', name: 'Meta Platforms RWA', pair: 'METAx/USDC', price: 585.00, change24h: 2.8, vol24h: 22.0, csr: 0.0 },
-        { symbol: 'GOOGx', name: 'Alphabet Google RWA', pair: 'GOOGx/USDC', price: 165.20, change24h: 1.1, vol24h: 12.8, csr: 0.0 },
-        { symbol: 'AMD-RWA', name: 'AMD Tokenized RWA', pair: 'AMDx/USDC', price: 156.40, change24h: 4.4, vol24h: 15.6, csr: 0.0 },
-        { symbol: 'SPYx', name: 'S&P 500 Index RWA', pair: 'SPYx/USDC', price: 582.00, change24h: 0.8, vol24h: 42.0, csr: 0.0 },
-        { symbol: 'QQQx', name: 'Nasdaq 100 Index RWA', pair: 'QQQx/USDC', price: 491.50, change24h: 1.3, vol24h: 38.5, csr: 0.0 },
-        { symbol: 'GOLDx', name: 'Tokenized Physical Gold', pair: 'GOLDx/USDC', price: 266.40, change24h: 0.4, vol24h: 14.1, csr: 0.0 },
-        { symbol: 'BOW', name: 'Robin Arrow Bow', pair: 'BOW/ETH', price: 0.00072, change24h: -14.2, vol24h: 0.35, csr: 32.1 },
-        { symbol: 'FEATHER', name: 'Green Cap Feather', pair: 'FEATHER/ETH', price: 0.0021, change24h: 19.8, vol24h: 0.88, csr: 21.0 },
-        { symbol: 'TUCK', name: 'Friar Tuck Meme', pair: 'TUCK/ETH', price: 0.00015, change24h: 3.4, vol24h: 0.22, csr: 16.4 },
-        { symbol: 'NOTTM', name: 'Nottingham Castle', pair: 'NOTTM/ETH', price: 0.012, change24h: -7.0, vol24h: 0.65, csr: 24.0 }
+        { 
+          symbol: 'ROBIN', 
+          name: 'Robin Protocol', 
+          pair: 'ROBIN/ETH', 
+          price: 1.24, 
+          change24h: 88.5, 
+          vol24h: 6.4, 
+          csr: 6.2,
+          createdDate: 'June 4, 2026',
+          age: '4 Months',
+          ath: 1.45,
+          athDate: 'Yesterday',
+          athDrawdown: '-14.4%',
+          atl: 0.10,
+          atlDate: 'June 2026',
+          atlGain: '+1,140%',
+          contract: '0x4663000000000000000000000000000000004663',
+          supply: '20.0 Million',
+          fdv: '$24.8 Million',
+          socials: {
+            twitter: 'https://twitter.com',
+            telegram: 'https://t.me',
+            website: 'https://robinhood.com',
+            docs: 'https://docs.robinhood.com'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+          about: 'Native utility and liquidity routing token for Robinhood Chain (Arbitrum Orbit L2 - ID: 4663) delivering 100ms instant execution.',
+          tags: ['L2 Orbit', 'Infrastructure', 'Gas Utility']
+        },
+        { 
+          symbol: 'TSLAx', 
+          name: 'Tesla Tokenized RWA', 
+          pair: 'TSLAx/USDC', 
+          price: 242.15, 
+          change24h: 3.2, 
+          vol24h: 21.5, 
+          csr: 0.0,
+          createdDate: 'January 10, 2026',
+          age: '10 Months',
+          ath: 268.00,
+          athDate: 'July 2026',
+          athDrawdown: '-9.6%',
+          atl: 165.00,
+          atlDate: 'April 2026',
+          atlGain: '+46.7%',
+          contract: '0x751a00000000000000000000000000000000751a',
+          supply: '750,000 Equities',
+          fdv: '$181.6 Million',
+          socials: {
+            twitter: 'https://twitter.com/tesla',
+            telegram: 'https://t.me',
+            website: 'https://ir.tesla.com',
+            docs: 'https://rwa.robinhood.com'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1560958089-b8a1929cea89?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=150&auto=format&fit=crop&q=80',
+          about: 'Fully collateralized tokenized common equity shares of Tesla Inc. backed 1:1 by custodian reserve holdings with 24/7 on-chain trading.',
+          tags: ['RWA', 'Tokenized Equities', 'Nasdaq', 'Collateralized']
+        }
       ],
       BASE: [
-        { symbol: 'BRETT', name: 'Brett Base', pair: 'BRETT/WETH', price: 0.089, change24h: 14.1, vol24h: 12.4, csr: 5.1 },
-        { symbol: 'DEGEN', name: 'Degen', pair: 'DEGEN/WETH', price: 0.0092, change24h: -3.8, vol24h: 4.1, csr: 11.4 },
-        { symbol: 'TOSHI', name: 'Toshi Cat', pair: 'TOSHI/WETH', price: 0.00028, change24h: 21.0, vol24h: 8.9, csr: 4.5 },
-        { symbol: 'AERO', name: 'Aerodrome Finance', pair: 'AERO/USDC', price: 1.25, change24h: 7.4, vol24h: 28.5, csr: 0.4 },
-        { symbol: 'KEYCAT', name: 'Keyboard Cat', pair: 'KEYCAT/WETH', price: 0.0068, change24h: -8.1, vol24h: 3.4, csr: 12.8 },
-        { symbol: 'HIGHER', name: 'Aim Higher', pair: 'HIGHER/WETH', price: 0.038, change24h: 16.5, vol24h: 4.2, csr: 8.2 },
-        { symbol: 'MOG-BASE', name: 'Mog Coin Base', pair: 'MOG/WETH', price: 0.0000018, change24h: 9.8, vol24h: 7.1, csr: 6.4 },
-        { symbol: 'BENJI', name: 'Basenji', pair: 'BENJI/WETH', price: 0.014, change24h: -2.0, vol24h: 1.9, csr: 15.2 },
-        { symbol: 'CHOMP', name: 'Chompcoin', pair: 'CHOMP/WETH', price: 0.084, change24h: 32.4, vol24h: 5.8, csr: 14.1 },
-        { symbol: 'SKI', name: 'Ski Mask Dog', pair: 'SKI/WETH', price: 0.045, change24h: 11.2, vol24h: 3.1, csr: 17.5 },
-        { symbol: 'VIRTUAL', name: 'Virtuals Protocol', pair: 'VIRTUAL/WETH', price: 0.48, change24h: 68.2, vol24h: 34.0, csr: 7.9 },
-        { symbol: 'LUNA-AI', name: 'Luna Virtual AI', pair: 'LUNA/WETH', price: 0.14, change24h: 45.1, vol24h: 16.5, csr: 10.4 },
-        { symbol: 'ALBX', name: 'Alien Base', pair: 'ALBX/WETH', price: 0.032, change24h: 5.6, vol24h: 1.8, csr: 2.1 },
-        { symbol: 'SEAM', name: 'Seamless Protocol', pair: 'SEAM/USDC', price: 1.62, change24h: -4.3, vol24h: 2.5, csr: 0.9 },
-        { symbol: 'WELL', name: 'Moonwell Base', pair: 'WELL/USDC', price: 0.058, change24h: 8.2, vol24h: 4.1, csr: 0.7 },
-        { symbol: 'MFER', name: 'mfercoin', pair: 'MFER/WETH', price: 0.024, change24h: -11.5, vol24h: 2.8, csr: 9.8 },
-        { symbol: 'NORMIE', name: 'Normie Base', pair: 'NORMIE/WETH', price: 0.011, change24h: 6.4, vol24h: 1.4, csr: 22.0 },
-        { symbol: 'TYBG', name: 'Base God', pair: 'TYBG/WETH', price: 0.00018, change24h: 4.8, vol24h: 1.9, csr: 8.6 },
-        { symbol: 'BRIUN', name: 'Briun Armstrung', pair: 'BRIUN/WETH', price: 0.0035, change24h: -6.2, vol24h: 0.95, csr: 28.4 },
-        { symbol: 'DOGINME', name: 'doginme', pair: 'DOGINME/WETH', price: 0.00034, change24h: 18.9, vol24h: 2.2, csr: 13.5 },
-        { symbol: 'ROOST', name: 'Roost', pair: 'ROOST/WETH', price: 0.0042, change24h: -1.8, vol24h: 1.1, csr: 19.8 },
-        { symbol: 'EXTRA', name: 'Extra Finance', pair: 'EXTRA/USDC', price: 0.88, change24h: 3.4, vol24h: 1.7, csr: 1.2 },
-        { symbol: 'SPECTRA', name: 'Spectra Base', pair: 'SPECTRA/WETH', price: 0.072, change24h: 14.5, vol24h: 2.4, csr: 5.6 },
-        { symbol: 'FOXY', name: 'Foxy Base', pair: 'FOXY/WETH', price: 0.0125, change24h: 7.8, vol24h: 3.6, csr: 8.1 },
-        { symbol: 'BASED', name: 'Based Peaches', pair: 'BASED/WETH', price: 0.00054, change24h: -5.0, vol24h: 0.8, csr: 24.5 }
+        { 
+          symbol: 'BRETT', 
+          name: 'Brett on Base', 
+          pair: 'BRETT/WETH', 
+          price: 0.089, 
+          change24h: 14.1, 
+          vol24h: 12.4, 
+          csr: 5.1,
+          createdDate: 'February 24, 2024',
+          age: '2+ Years',
+          ath: 0.193,
+          athDate: 'June 9, 2024',
+          athDrawdown: '-53.8%',
+          atl: 0.0008,
+          atlDate: 'February 2024',
+          atlGain: '+11,025%',
+          contract: '0x532f27101965dd16442E59d40670FaF5eBB142E4',
+          supply: '10.0 Billion',
+          fdv: '$890.0 Million',
+          socials: {
+            twitter: 'https://twitter.com/BasedBrett',
+            telegram: 'https://t.me/basedbrett',
+            website: 'https://basedbrett.com',
+            docs: 'https://basedbrett.com'
+          },
+          bannerUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200&auto=format&fit=crop&q=80',
+          avatarUrl: 'https://raw.githubusercontent.com/base-org/assets/master/blockchains/base/assets/0x532f27101965dd16442E59d40670FaF5eBB142E4/logo.png',
+          about: 'The legendary mascot of the Base ecosystem inspired by Matt Furie’s Boys Club comic series. The undisputed blue-chip meme of Coinbase’s L2.',
+          tags: ['Base Mascot', 'Meme Blue Chip', 'Coinbase L2']
+        }
       ]
     };
 
-    // PUMP.FUN EMBEDDED WALLET GENERATOR
+    // Client-side Keypair Generator
     function generateBurnerWallet() {
       const array = new Uint8Array(32);
       window.crypto.getRandomValues(array);
       const hex = Array.from(array).map(b => b.toString(16).padStart(2, '0')).join('');
-      const address = "0x" + hex.slice(0, 40);
-      const privateKey = "0x" + hex;
-      return { address, privateKey };
+      return { address: "0x" + hex.slice(0, 40), privateKey: "0x" + hex };
     }
 
     function App() {
@@ -190,13 +363,13 @@
       const [buyAmount, setBuyAmount] = useState('0.1');
       const [marketModalOpen, setMarketModalOpen] = useState(false);
       const [walletModalOpen, setWalletModalOpen] = useState(false);
+      const [dossierModalOpen, setDossierModalOpen] = useState(false);
       const [orderNotification, setOrderNotification] = useState(null);
       const [wallet, setWallet] = useState(null);
       const [balance, setBalance] = useState(1.50);
       const [showPrivateKey, setShowPrivateKey] = useState(false);
       const canvasRef = useRef(null);
 
-      // Load wallet from localStorage
       useEffect(() => {
         const saved = localStorage.getItem('tz_burner_wallet');
         if (saved) {
@@ -217,7 +390,6 @@
         setActiveToken(TOKEN_REGISTRY[chainKey][0]);
       };
 
-      // Filter pairs dynamically
       const filteredPairs = useMemo(() => {
         const list = TOKEN_REGISTRY[selectedChainKey] || [];
         if (!searchQuery.trim()) return list;
@@ -227,7 +399,7 @@
         );
       }, [selectedChainKey, searchQuery]);
 
-      // High-Frequency Canvas Candlestick Loop
+      // High-Frequency Candlestick Canvas
       useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -296,7 +468,7 @@
             return;
           }
           setBalance(prev => Math.max(0, prev - cost));
-          setOrderNotification(`FILLED: BUY ${buyAmount} ${activeToken.symbol} on ${activeChain.name}`);
+          setOrderNotification(`FILLED: BUY ${buyAmount} ${activeToken.symbol}`);
         } else {
           setBalance(prev => prev + 0.35);
           setOrderNotification(`PANIC DUMP 100% EXECUTED for ${activeToken.symbol}`);
@@ -329,11 +501,11 @@
             <div className="flex items-center gap-3 font-mono text-xs">
               <span className="text-emerald-400">● {activeChain.mevEngine}</span>
 
-              {/* EMBEDDED WALLET BUTTON */}
+              {/* EMBEDDED WALLET */}
               {wallet ? (
                 <button
                   onClick={() => setWalletModalOpen(true)}
-                  className="flex items-center gap-2 bg-zinc-900 border border-emerald-500/50 hover:border-emerald-400 px-3 py-1 rounded text-white font-mono"
+                  className="flex items-center gap-2 bg-zinc-900 border border-emerald-500/50 hover:border-emerald-400 px-3 py-1 rounded text-white font-mono cursor-pointer"
                 >
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span className="font-bold text-emerald-400">{balance.toFixed(2)} {activeChain.symbol}</span>
@@ -342,7 +514,7 @@
               ) : (
                 <button
                   onClick={createWallet}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1 rounded font-bold transition flex items-center gap-1"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1 rounded font-bold transition flex items-center gap-1 cursor-pointer"
                 >
                   ⚡ CREATE WALLET
                 </button>
@@ -350,7 +522,7 @@
 
               <button
                 onClick={() => setMarketModalOpen(true)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded font-bold border border-zinc-700"
+                className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded font-bold border border-zinc-700 cursor-pointer"
               >
                 BOOST
               </button>
@@ -399,7 +571,7 @@
                           {item.symbol}
                           <span className="text-[9px] text-zinc-400 font-normal">{item.pair}</span>
                         </div>
-                        <div className="text-[10px] text-zinc-500">{item.name}</div>
+                        <div className="text-[10px] text-zinc-500 truncate w-32">{item.name}</div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -415,32 +587,58 @@
 
             {/* CHART DISPLAY (CENTER COLUMN) */}
             <div className="flex flex-1 flex-col border-r border-zinc-800">
-              <div className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900/30 px-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black text-white">{activeToken.pair}</span>
-                    <span className="text-xs text-zinc-400 font-mono">{activeToken.name}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-mono ${activeChain.badge}`}>
-                      {activeChain.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 font-mono text-xs">
-                    <span className="text-lg font-bold text-emerald-400">
-                      ${activeToken.price < 0.001 ? activeToken.price.toFixed(7) : activeToken.price.toFixed(activeToken.price < 1 ? 4 : 2)}
-                    </span>
-                    <span className={`font-bold ${activeToken.change24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {activeToken.change24h >= 0 ? '+' : ''}{activeToken.change24h}%
-                    </span>
+              
+              {/* COMPREHENSIVE HEADER WITH SOCIALS & DOSSIER TRIGGER */}
+              <div className="flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-900/40 px-4">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={activeToken.avatarUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150'} 
+                    alt={activeToken.symbol} 
+                    className="w-9 h-9 rounded-full border border-zinc-700 object-cover bg-zinc-900"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-white">{activeToken.pair}</span>
+                      <span className="text-xs text-zinc-400 font-mono">{activeToken.name}</span>
+                      <button
+                        onClick={() => setDossierModalOpen(true)}
+                        className="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded font-mono font-bold hover:bg-emerald-900 transition cursor-pointer"
+                      >
+                        📖 FULL DOSSIER
+                      </button>
+                    </div>
+
+                    {/* SOCIAL QUICK-REDIRECT LINKS */}
+                    <div className="flex items-center gap-2 mt-1 text-[11px] font-mono">
+                      <a href={activeToken.socials?.twitter} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-white flex items-center gap-1 hover:underline">
+                        𝕏 Twitter
+                      </a>
+                      <span className="text-zinc-700">•</span>
+                      <a href={activeToken.socials?.telegram} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-sky-400 flex items-center gap-1 hover:underline">
+                        ✈ Telegram
+                      </a>
+                      <span className="text-zinc-700">•</span>
+                      <a href={activeToken.socials?.website} target="_blank" rel="noreferrer" className="text-zinc-400 hover:text-emerald-400 flex items-center gap-1 hover:underline">
+                        🌐 Website
+                      </a>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 font-mono text-xs">
+                {/* HISTORICAL MARKET SNAPSHOT */}
+                <div className="flex items-center gap-5 font-mono text-xs">
                   <div className="text-right">
-                    <div className="text-[10px] text-zinc-400">24H VOLUME</div>
-                    <div className="font-bold text-zinc-200">${activeToken.vol24h}M</div>
+                    <div className="text-[10px] text-zinc-500">ALL-TIME HIGH (ATH)</div>
+                    <div className="font-bold text-emerald-400">${activeToken.ath} <span className="text-[10px] text-zinc-400">({activeToken.athDrawdown})</span></div>
                   </div>
+
+                  <div className="text-right">
+                    <div className="text-[10px] text-zinc-500">CREATED / AGE</div>
+                    <div className="font-bold text-zinc-200">{activeToken.age}</div>
+                  </div>
+
                   <div className="rounded border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-center">
-                    <div className="text-[10px] text-zinc-400">CONNECTED SUPPLY (CSR)</div>
+                    <div className="text-[10px] text-zinc-500">CONNECTED SUPPLY (CSR)</div>
                     <div className={`font-black ${activeToken.csr > 20 ? 'text-rose-400' : 'text-emerald-400'}`}>
                       {activeToken.csr}% {activeToken.csr > 20 ? 'CABAL RISK' : 'CLEAN'}
                     </div>
@@ -448,6 +646,7 @@
                 </div>
               </div>
 
+              {/* LIVE CHART */}
               <div className="flex-1 bg-zinc-950 p-2 flex flex-col justify-between">
                 <div className="flex items-center justify-between border-b border-zinc-900 pb-2 px-2 font-mono text-xs text-zinc-400">
                   <div className="flex gap-2">
@@ -496,14 +695,14 @@
 
                 <button
                   onClick={() => triggerOrder('BUY')}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-lg transition"
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-lg transition cursor-pointer"
                 >
                   BUY {activeToken.symbol}
                 </button>
 
                 <button
                   onClick={() => triggerOrder('SELL')}
-                  className="w-full py-2 bg-rose-950 border border-rose-800 text-rose-300 font-bold rounded-lg hover:bg-rose-900 transition"
+                  className="w-full py-2 bg-rose-950 border border-rose-800 text-rose-300 font-bold rounded-lg hover:bg-rose-900 transition cursor-pointer"
                 >
                   PANIC SELL 100%
                 </button>
@@ -522,6 +721,146 @@
 
           </div>
 
+          {/* COMPREHENSIVE TOKEN DOSSIER MODAL */}
+          {dossierModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 font-mono">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative border border-emerald-500/30">
+                
+                {/* Visual Banner */}
+                <div className="h-36 w-full relative overflow-hidden rounded-t-2xl bg-zinc-900">
+                  <img src={activeToken.bannerUrl} alt="Banner" className="w-full h-full object-cover opacity-60" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent"></div>
+                  <button 
+                    onClick={() => setDossierModalOpen(false)} 
+                    className="absolute top-3 right-3 bg-black/70 hover:bg-black text-white p-2 rounded-full cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Profile Header */}
+                <div className="px-6 -mt-12 relative flex items-end gap-4 pb-4 border-b border-zinc-800">
+                  <img 
+                    src={activeToken.avatarUrl} 
+                    alt={activeToken.symbol} 
+                    className="w-20 h-20 rounded-2xl border-2 border-emerald-500 bg-zinc-900 object-cover shadow-2xl"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-black text-white">{activeToken.name}</h2>
+                      <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-bold">
+                        {activeToken.symbol}
+                      </span>
+                    </div>
+                    <div className="text-xs text-zinc-400 mt-0.5">{activeToken.pair} • {activeChain.name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-white">${activeToken.price}</div>
+                    <div className={`text-xs font-bold ${activeToken.change24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {activeToken.change24h >= 0 ? '+' : ''}{activeToken.change24h}% (24h)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dossier Content */}
+                <div className="p-6 space-y-6 text-xs">
+                  
+                  {/* Verified Social Hub */}
+                  <div>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">OFFICIAL COMMUNITY & SOCIAL LINKS</h3>
+                    <div className="grid grid-cols-4 gap-2">
+                      <a href={activeToken.socials?.twitter} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-zinc-600 text-white font-bold transition">
+                        𝕏 Twitter
+                      </a>
+                      <a href={activeToken.socials?.telegram} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-sky-500 text-sky-400 font-bold transition">
+                        ✈ Telegram
+                      </a>
+                      <a href={activeToken.socials?.website} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-emerald-500 text-emerald-400 font-bold transition">
+                        🌐 Website
+                      </a>
+                      <a href={activeToken.socials?.docs} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-indigo-500 text-indigo-400 font-bold transition">
+                        📄 Whitepaper
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* All Time High / All Time Low & Genesis */}
+                  <div>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">HISTORICAL PRICE EXTREMES & GENESIS</h3>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl">
+                        <div className="text-[10px] text-zinc-400">ALL-TIME HIGH (ATH)</div>
+                        <div className="text-base font-black text-emerald-400 mt-0.5">${activeToken.ath}</div>
+                        <div className="text-[10px] text-zinc-500">{activeToken.athDate} ({activeToken.athDrawdown})</div>
+                      </div>
+                      <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl">
+                        <div className="text-[10px] text-zinc-400">ALL-TIME LOW (ATL)</div>
+                        <div className="text-base font-black text-indigo-400 mt-0.5">${activeToken.atl}</div>
+                        <div className="text-[10px] text-zinc-500">{activeToken.atlDate} ({activeToken.atlGain})</div>
+                      </div>
+                      <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl">
+                        <div className="text-[10px] text-zinc-400">DATE CREATED / AGE</div>
+                        <div className="text-base font-black text-zinc-200 mt-0.5">{activeToken.age}</div>
+                        <div className="text-[10px] text-zinc-500">{activeToken.createdDate}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Supply & Market Capitalization */}
+                  <div>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">TOKEN SUPPLY & VALUATION</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl flex justify-between items-center">
+                        <div>
+                          <div className="text-[10px] text-zinc-400">TOTAL CIRCULATING SUPPLY</div>
+                          <div className="text-sm font-bold text-white mt-0.5">{activeToken.supply}</div>
+                        </div>
+                        <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-300">100% Minted</span>
+                      </div>
+                      <div className="bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl flex justify-between items-center">
+                        <div>
+                          <div className="text-[10px] text-zinc-400">FULLY DILUTED VALUE (FDV)</div>
+                          <div className="text-sm font-bold text-white mt-0.5">{activeToken.fdv}</div>
+                        </div>
+                        <span className="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-300">24h Vol: ${activeToken.vol24h}M</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Project Background Narrative */}
+                  <div>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">PROJECT BACKGROUND & NARRATIVE</h3>
+                    <div className="bg-zinc-900/40 border border-zinc-800/80 p-3.5 rounded-xl leading-relaxed text-zinc-300">
+                      {activeToken.about}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {activeToken.tags?.map(t => (
+                        <span key={t} className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[10px]">
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Smart Contract Audit Card */}
+                  <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl flex justify-between items-center">
+                    <div>
+                      <div className="text-[10px] text-zinc-400">CONTRACT ADDRESS</div>
+                      <div className="text-emerald-400 font-mono text-[11px] break-all select-all">{activeToken.contract}</div>
+                    </div>
+                    <button 
+                      onClick={() => { navigator.clipboard.writeText(activeToken.contract); alert('Contract address copied!'); }}
+                      className="ml-3 bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded font-bold text-white shrink-0 cursor-pointer"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* WALLET DETAILS MODAL */}
           {walletModalOpen && wallet && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-mono">
@@ -531,7 +870,7 @@
                     <span className="h-3 w-3 rounded-full bg-emerald-400"></span>
                     <h3 className="font-bold text-white text-sm">YOUR EMBEDDED WALLET</h3>
                   </div>
-                  <button onClick={() => setWalletModalOpen(false)} className="text-zinc-400 hover:text-white">✕</button>
+                  <button onClick={() => setWalletModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
                 </div>
 
                 <div className="space-y-4 text-xs">
@@ -542,7 +881,7 @@
                     </div>
                     <button
                       onClick={() => { navigator.clipboard.writeText(wallet.address); alert('Address Copied!'); }}
-                      className="mt-2 w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded text-center font-bold"
+                      className="mt-2 w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded text-center font-bold cursor-pointer"
                     >
                       📋 Copy Address
                     </button>
@@ -553,7 +892,7 @@
                       <span className="text-[10px] text-zinc-400">PRIVATE KEY (EXPORT ANYTIME)</span>
                       <button
                         onClick={() => setShowPrivateKey(!showPrivateKey)}
-                        className="text-[10px] text-emerald-400 hover:underline"
+                        className="text-[10px] text-emerald-400 hover:underline cursor-pointer"
                       >
                         {showPrivateKey ? 'Hide' : 'Reveal'}
                       </button>
@@ -566,7 +905,7 @@
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setBalance(b => b + 1.0); alert('1.0 Test Deposit Added!'); }}
-                      className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded"
+                      className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded cursor-pointer"
                     >
                       + Deposit Test Funds
                     </button>
@@ -574,7 +913,7 @@
                       onClick={() => {
                         if (confirm('Create new key? Ensure previous key is backed up!')) createWallet();
                       }}
-                      className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded"
+                      className="py-2 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
                     >
                       New Key
                     </button>
@@ -590,7 +929,7 @@
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 max-w-md w-full">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-white">BOOST & VERIFY TOKEN</h3>
-                  <button onClick={() => setMarketModalOpen(false)} className="text-zinc-400 hover:text-white">✕</button>
+                  <button onClick={() => setMarketModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
                 </div>
                 <div className="space-y-3">
                   <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
@@ -598,14 +937,14 @@
                       <div className="font-bold text-white">Alpha Blitz (24h)</div>
                       <div className="text-xs text-zinc-400">5x Trending Boost</div>
                     </div>
-                    <button onClick={() => { alert('Boost Activated!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400">$69</button>
+                    <button onClick={() => { alert('Boost Activated!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400 cursor-pointer">$69</button>
                   </div>
                   <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
                     <div>
                       <div className="font-bold text-white">Anti-Cabal Pass</div>
                       <div className="text-xs text-zinc-400">Full Cluster Audit Badge</div>
                     </div>
-                    <button onClick={() => { alert('Audit Queued!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400">$79</button>
+                    <button onClick={() => { alert('Audit Queued!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400 cursor-pointer">$79</button>
                   </div>
                 </div>
               </div>
