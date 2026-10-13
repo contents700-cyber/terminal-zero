@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TERMINAL ZERO | High-Frequency DEX Screener</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel compiler -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { margin: 0; background-color: #09090b; color: #f4f4f5; overflow: hidden; user-select: none; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const CHAINS = {
+      ROBINHOOD: { name: 'Robinhood Chain', symbol: 'ETH', mevEngine: 'Orbit Sequencer Direct', avgBlock: '100ms' },
+      SOL: { name: 'Solana', symbol: 'SOL', mevEngine: 'Jito Bundle Engine', avgBlock: '400ms' },
+      BSC: { name: 'BNB Smart Chain', symbol: 'BNB', mevEngine: 'BloXroute FastRPC', avgBlock: '3.0s' },
+      BASE: { name: 'Base', symbol: 'ETH', mevEngine: 'Flashbots Relay', avgBlock: '2.0s' }
+    };
+
+    const TOKEN_REGISTRY = {
+      ROBINHOOD: [
+        { symbol: 'ROBIN', name: 'Robin Protocol', pair: 'ROBIN/ETH', price: 1.24, change24h: 88.5, vol24h: 6.4, csr: 6.2 },
+        { symbol: 'TSLAx', name: 'Tesla Tokenized RWA', pair: 'TSLAx/USDC', price: 242.15, change24h: 3.2, vol24h: 21.5, csr: 0.0 },
+        { symbol: 'NVDAx', name: 'Nvidia Tokenized RWA', pair: 'NVDAx/USDC', price: 134.80, change24h: 5.6, vol24h: 38.2, csr: 0.0 }
+      ],
+      SOL: [
+        { symbol: 'ZERO', name: 'Terminal Zero', pair: 'ZERO/SOL', price: 0.0482, change24h: 34.8, vol24h: 4.2, csr: 14.2 },
+        { symbol: 'WIF', name: 'dogwifhat', pair: 'WIF/SOL', price: 2.38, change24h: -4.1, vol24h: 48.9, csr: 2.1 }
+      ],
+      BSC: [
+        { symbol: 'FOUR', name: 'Four Meme', pair: 'FOUR/WBNB', price: 0.0084, change24h: 52.4, vol24h: 2.1, csr: 8.4 },
+        { symbol: 'CAKE', name: 'PancakeSwap', pair: 'CAKE/USDT', price: 2.45, change24h: 1.8, vol24h: 18.5, csr: 0.5 }
+      ],
+      BASE: [
+        { symbol: 'BRETT', name: 'Brett Base', pair: 'BRETT/WETH', price: 0.089, change24h: 14.1, vol24h: 12.4, csr: 5.1 }
+      ]
+    };
+
+    function App() {
+      const [selectedChainKey, setSelectedChainKey] = useState('ROBINHOOD');
+      const activeChain = CHAINS[selectedChainKey];
+      const [activeToken, setActiveToken] = useState(TOKEN_REGISTRY.ROBINHOOD[0]);
+      const [buyAmount, setBuyAmount] = useState('0.5');
+      const [marketModalOpen, setMarketModalOpen] = useState(false);
+      const [orderNotification, setOrderNotification] = useState(null);
+      const canvasRef = useRef(null);
+
+      const handleChainSwitch = (chainKey) => {
+        setSelectedChainKey(chainKey);
+        setActiveToken(TOKEN_REGISTRY[chainKey][0]);
+      };
+
+      useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let animationId;
+
+        const renderChart = () => {
+          const width = canvas.width;
+          const height = canvas.height;
+          ctx.clearRect(0, 0, width, height);
+
+          // Grid
+          ctx.strokeStyle = '#18181b';
+          ctx.lineWidth = 1;
+          for (let x = 0; x < width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+          for (let y = 0; y < height; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+
+          const candleCount = 26;
+          const candleWidth = (width - 40) / candleCount;
+          let prevClose = height * 0.55;
+
+          for (let i = 0; i < candleCount; i++) {
+            const x = i * candleWidth + 10;
+            const change = (Math.sin(i * 0.8 + Date.now() * 0.001) + Math.cos(i * 0.3)) * 10;
+            const open = prevClose;
+            const close = prevClose - change;
+            const high = Math.min(open, close) - 6;
+            const low = Math.max(open, close) + 6;
+            const isBull = close <= open;
+
+            ctx.strokeStyle = isBull ? '#10b981' : '#f43f5e';
+            ctx.beginPath();
+            ctx.moveTo(x + candleWidth / 2, high);
+            ctx.lineTo(x + candleWidth / 2, low);
+            ctx.stroke();
+
+            ctx.fillStyle = isBull ? '#10b981' : '#f43f5e';
+            ctx.fillRect(x + 2, Math.min(open, close), candleWidth - 4, Math.max(Math.abs(close - open), 2));
+            prevClose = close;
+          }
+
+          ctx.strokeStyle = '#34d399';
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(0, prevClose);
+          ctx.lineTo(width, prevClose);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          animationId = requestAnimationFrame(renderChart);
+        };
+
+        renderChart();
+        return () => cancelAnimationFrame(animationId);
+      }, [activeToken]);
+
+      const triggerOrder = (type) => {
+        setOrderNotification(`${type === 'BUY' ? 'BUY FILLED' : 'PANIC SOLD'} ${activeToken.symbol}`);
+        setTimeout(() => setOrderNotification(null), 2500);
+      };
+
+      return (
+        <div className="flex h-screen w-screen flex-col bg-zinc-950 font-sans">
+          {/* Header */}
+          <header className="flex h-12 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500 font-mono text-xs font-black text-black">0</span>
+              <span className="font-mono text-sm font-black tracking-wider text-white">TERMINAL<span className="text-emerald-400">ZERO</span></span>
+              <div className="flex items-center gap-1 bg-zinc-900 p-0.5 rounded border border-zinc-800 ml-4">
+                {Object.entries(CHAINS).map(([key, chain]) => (
+                  <button
+                    key={key}
+                    onClick={() => handleChainSwitch(key)}
+                    className={`px-2.5 py-1 text-xs font-mono rounded transition ${selectedChainKey === key ? 'bg-zinc-800 text-white font-bold' : 'text-zinc-400 hover:text-white'}`}
+                  >
+                    {chain.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 font-mono text-xs">
+              <span className="text-emerald-400">● {activeChain.mevEngine}</span>
+              <button
+                onClick={() => setMarketModalOpen(true)}
+                className="bg-emerald-500 text-black px-3 py-1 rounded font-bold hover:bg-emerald-400"
+              >
+                BOOST / VERIFY
+              </button>
+            </div>
+          </header>
+
+          {/* Main Area */}
+          <div className="flex flex-1 overflow-hidden relative">
+            {orderNotification && (
+              <div className="absolute top-4 right-8 z-50 bg-emerald-950 border border-emerald-500 text-emerald-300 px-4 py-2 rounded font-mono text-xs shadow-xl animate-bounce">
+                {orderNotification}
+              </div>
+            )}
+
+            {/* Trending Drawer */}
+            <div className="w-64 border-r border-zinc-800 bg-zinc-950/60 p-3 font-mono text-xs">
+              <div className="font-bold text-amber-400 mb-2">⚡ TRENDING RADAR</div>
+              <div className="space-y-1">
+                {TOKEN_REGISTRY[selectedChainKey].map((item) => (
+                  <div
+                    key={item.symbol}
+                    onClick={() => setActiveToken(item)}
+                    className={`p-2 rounded cursor-pointer flex justify-between ${activeToken.symbol === item.symbol ? 'bg-zinc-800 border-l-2 border-emerald-400' : 'hover:bg-zinc-900'}`}
+                  >
+                    <div>
+                      <div className="font-bold text-white">{item.symbol}</div>
+                      <div className="text-[10px] text-zinc-500">Vol: ${item.vol24h}M</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white">${item.price}</div>
+                      <div className={item.change24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                        {item.change24h >= 0 ? '+' : ''}{item.change24h}%
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Chart Area */}
+            <div className="flex flex-1 flex-col border-r border-zinc-800">
+              <div className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-900/30 px-4">
+                <div>
+                  <span className="text-base font-black text-white mr-2">{activeToken.pair}</span>
+                  <span className="text-sm font-bold text-emerald-400">${activeToken.price}</span>
+                </div>
+                <div className="font-mono text-xs bg-zinc-900 border border-zinc-800 px-3 py-1 rounded">
+                  CSR: <span className={activeToken.csr > 20 ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>{activeToken.csr}%</span>
+                </div>
+              </div>
+              <div className="flex-1 bg-zinc-950 p-2">
+                <canvas ref={canvasRef} width={800} height={400} className="w-full h-full block" />
+              </div>
+            </div>
+
+            {/* Execution Dock */}
+            <div className="w-72 p-4 font-mono text-xs flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="font-bold text-zinc-300">1-CLICK EXECUTION</div>
+                <div>
+                  <label className="text-[10px] text-zinc-400">AMOUNT ({activeChain.symbol})</label>
+                  <input
+                    type="text"
+                    value={buyAmount}
+                    onChange={(e) => setBuyAmount(e.target.value)}
+                    className="w-full mt-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white font-bold outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <button
+                  onClick={() => triggerOrder('BUY')}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black rounded-lg transition"
+                >
+                  BUY {activeToken.symbol}
+                </button>
+                <button
+                  onClick={() => triggerOrder('SELL')}
+                  className="w-full py-2 bg-rose-950 border border-rose-800 text-rose-300 font-bold rounded-lg hover:bg-rose-900 transition"
+                >
+                  PANIC SELL 100%
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal */}
+          {marketModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 font-mono">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 max-w-md w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-white">BOOST & VERIFY TOKEN</h3>
+                  <button onClick={() => setMarketModalOpen(false)} className="text-zinc-400 hover:text-white">✕</button>
+                </div>
+                <div className="space-y-3">
+                  <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-white">Alpha Blitz (24h)</div>
+                      <div className="text-xs text-zinc-400">5x Trending Boost</div>
+                    </div>
+                    <button onClick={() => { alert('Boost Activated!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400">$69</button>
+                  </div>
+                  <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
+                    <div>
+                      <div className="font-bold text-white">Anti-Cabal Pass</div>
+                      <div className="text-xs text-zinc-400">Full Cluster Audit Badge</div>
+                    </div>
+                    <button onClick={() => { alert('Audit Queued!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400">$79</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
