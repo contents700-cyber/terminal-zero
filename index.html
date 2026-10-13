@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TERMINAL ZERO | Pro DEX Screener</title>
+  <title>TERMINAL ZERO | Pro Multi-Chain DEX Screener</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React & ReactDOM -->
@@ -11,9 +11,11 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <!-- Babel compiler -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Official TradingView Lightweight Charts (Used by DexScreener & Pump.fun) -->
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
   <style>
     body { margin: 0; background-color: #09090b; color: #f4f4f5; overflow: hidden; user-select: none; }
-    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #09090b; }
     ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
@@ -26,52 +28,151 @@
     const { useState, useEffect, useRef, useMemo } = React;
 
     const CHAINS = {
-      ETH: { name: 'Ethereum', symbol: 'ETH', mevEngine: 'Flashbots Protect', avgBlock: '12.0s', badge: 'border-indigo-500/40 text-indigo-400' },
       SOL: { name: 'Solana', symbol: 'SOL', mevEngine: 'Jito Bundle Engine', avgBlock: '400ms', badge: 'border-emerald-500/40 text-emerald-400' },
+      ETH: { name: 'Ethereum', symbol: 'ETH', mevEngine: 'Flashbots Protect', avgBlock: '12.0s', badge: 'border-indigo-500/40 text-indigo-400' },
       BSC: { name: 'BNB Chain', symbol: 'BNB', mevEngine: 'BloXroute FastRPC', avgBlock: '3.0s', badge: 'border-amber-500/40 text-amber-400' },
       ROBINHOOD: { name: 'Robinhood L2', symbol: 'ETH', mevEngine: 'Orbit Sequencer Direct', avgBlock: '100ms', badge: 'border-emerald-500/40 text-emerald-400' },
       BASE: { name: 'Base', symbol: 'ETH', mevEngine: 'Flashbots Relay', avgBlock: '2.0s', badge: 'border-blue-500/40 text-blue-400' }
     };
 
-    // Helper to generate reliable visual SVG avatars & banners
+    // SVG Generator for consistent high-res avatars
     const getAvatarSvg = (symbol, bg = '059669') => 
       `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23${bg}"/><text x="50%" y="55%" font-family="monospace" font-weight="900" font-size="28" fill="white" text-anchor="middle" dominant-baseline="middle">${symbol.slice(0, 4)}</text></svg>`;
 
-    const getBannerSvg = (title, chain) => 
-      `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="240" viewBox="0 0 800 240"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2309090b"/><stop offset="100%" stop-color="%2318181b"/></linearGradient></defs><rect width="800" height="240" fill="url(%23g)"/><line x1="0" y1="239" x2="800" y2="239" stroke="%2327272a" stroke-width="2"/><text x="40" y="110" font-family="monospace" font-weight="900" font-size="42" fill="%23ffffff">${title}</text><text x="40" y="150" font-family="monospace" font-size="18" fill="%2310b981">${chain} TERMINAL SPEC</text></svg>`;
-
-    // 100+ MAJOR CURATED TOKENS
+    // FULL 100 DOCUMENTED PAIRS (20 PER CHAIN ACROSS ALL 5 CHAINS)
     const TOKEN_REGISTRY = {
-      ETH: [
-        { symbol: 'PEPE', name: 'Pepe the Frog', pair: 'PEPE/WETH', price: 0.0000098, change24h: 18.4, vol24h: 142.0, csr: 3.2, platform: 'Uniswap v2', createdDate: 'Apr 14, 2023', age: '3 Yrs', ath: 0.0000171, athDate: 'May 2024', athDrawdown: '-42.7%', atl: 0.000000055, atlDate: 'Apr 2023', atlGain: '+17,700%', contract: '0x6982508145454Ce325dDbE47a25d4ec3d2311933', supply: '420.69T', fdv: '$4.12B', socials: { twitter: 'https://twitter.com/pepecoineth', telegram: 'https://t.me/pepecoineth', website: 'https://pepe.vip', docs: 'https://pepe.vip' }, about: 'Iconic decentralized cultural memecoin launched on Ethereum with zero transaction taxes.' },
-        { symbol: 'SHIB', name: 'Shiba Inu', pair: 'SHIB/WETH', price: 0.0000178, change24h: 4.2, vol24h: 88.5, csr: 1.1, platform: 'Uniswap v2', createdDate: 'Aug 1, 2020', age: '6 Yrs', ath: 0.0000884, athDate: 'Oct 2021', athDrawdown: '-79.8%', atl: 0.000000000056, atlDate: 'Nov 2020', atlGain: '+31,785,000%', contract: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE', supply: '589.5T', fdv: '$10.49B', socials: { twitter: 'https://twitter.com/Shibtoken', telegram: 'https://t.me/shibainuthedogecoinkiller', website: 'https://shib.io', docs: 'https://shib.io' }, about: 'Decentralized meme ecosystem expanding into Shibarium Layer-2.' },
-        { symbol: 'UNI', name: 'Uniswap Protocol', pair: 'UNI/WETH', price: 7.85, change24h: 2.9, vol24h: 42.0, csr: 0.2, platform: 'Uniswap v3', createdDate: 'Sep 17, 2020', age: '6 Yrs', ath: 44.97, athDate: 'May 2021', athDrawdown: '-82.5%', atl: 1.03, atlDate: 'Sep 2020', atlGain: '+662%', contract: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', supply: '1.0B', fdv: '$7.85B', socials: { twitter: 'https://twitter.com/Uniswap', telegram: 'https://t.me', website: 'https://uniswap.org', docs: 'https://docs.uniswap.org' }, about: 'Standard decentralized automated liquidity protocol.' },
-        { symbol: 'LINK', name: 'Chainlink', pair: 'LINK/WETH', price: 11.40, change24h: 5.6, vol24h: 56.4, csr: 0.4, platform: 'Uniswap v3', createdDate: 'Sep 2017', age: '9 Yrs', ath: 52.88, athDate: 'May 2021', athDrawdown: '-78.4%', atl: 0.12, atlDate: 'Sep 2017', atlGain: '+9,400%', contract: '0x514910771AF9Ca656af840dff83E8264EcF986CA', supply: '1.0B', fdv: '$11.4B', socials: { twitter: 'https://twitter.com/chainlink', telegram: 'https://t.me', website: 'https://chain.link', docs: 'https://docs.chain.link' }, about: 'Decentralized oracle network connecting smart contracts to off-chain data feeds.' },
-        { symbol: 'AAVE', name: 'Aave Protocol', pair: 'AAVE/WETH', price: 154.20, change24h: 8.1, vol24h: 62.0, csr: 0.3, platform: 'Uniswap v3', createdDate: 'Oct 2020', age: '6 Yrs', ath: 666.86, athDate: 'May 2021', athDrawdown: '-76.8%', atl: 25.92, atlDate: 'Nov 2020', atlGain: '+494%', contract: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9', supply: '16.0M', fdv: '$2.46B', socials: { twitter: 'https://twitter.com/aave', telegram: 'https://t.me', website: 'https://aave.com', docs: 'https://docs.aave.com' }, about: 'Non-custodial liquidity market for borrowing and lending.' },
-        { symbol: 'MKR', name: 'Maker', pair: 'MKR/WETH', price: 1280.00, change24h: -1.4, vol24h: 28.5, csr: 0.1, platform: 'Uniswap v3', createdDate: 'Nov 2017', age: '9 Yrs', ath: 6339.02, athDate: 'May 2021', athDrawdown: '-79.8%', atl: 21.06, atlDate: 'Jan 2017', atlGain: '+6,000%', contract: '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2', supply: '920K', fdv: '$1.17B', socials: { twitter: 'https://twitter.com/MakerDAO', telegram: 'https://t.me', website: 'https://makerdao.com', docs: 'https://makerdao.com' }, about: 'Decentralized credit facility powering the DAI stablecoin.' },
-        { symbol: 'PENDLE', name: 'Pendle Finance', pair: 'PENDLE/WETH', price: 4.82, change24h: 12.8, vol24h: 31.4, csr: 1.5, platform: 'Uniswap v3', createdDate: 'Apr 28, 2021', age: '5 Yrs', ath: 7.52, athDate: 'Apr 2024', athDrawdown: '-35.9%', atl: 0.033, atlDate: 'Nov 2022', atlGain: '+14,500%', contract: '0x808507121B80c02388fAd14726482e061B8da827', supply: '258.4M', fdv: '$1.24B', socials: { twitter: 'https://twitter.com/pendle_fi', telegram: 'https://t.me', website: 'https://pendle.finance', docs: 'https://docs.pendle.finance' }, about: 'Yield-trading protocol splitting assets into principal and yield tokens.' }
-      ],
       SOL: [
-        { symbol: 'ZERO', name: 'Terminal Zero', pair: 'ZERO/SOL', price: 0.0482, change24h: 34.8, vol24h: 4.2, csr: 14.2, platform: 'Raydium', createdDate: 'Oct 12, 2026', age: 'Genesis', ath: 0.052, athDate: 'Today', athDrawdown: '-7.3%', atl: 0.008, atlDate: 'Genesis', atlGain: '+502%', contract: 'Zero111111111111111111111111111111111111111', supply: '1.0B', fdv: '$48.2M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://terminalzero.fi', docs: 'https://docs.terminalzero.fi' }, about: 'Ultra-low latency multi-chain execution terminal with anti-cabal clustering.' },
-        { symbol: 'POPCAT', name: 'Popcat', pair: 'POPCAT/SOL', price: 1.42, change24h: 18.4, vol24h: 32.5, csr: 6.5, platform: 'Raydium', createdDate: 'Dec 2023', age: '3 Yrs', ath: 1.81, athDate: 'Oct 2024', athDrawdown: '-21.5%', atl: 0.0037, atlDate: 'Jan 2024', atlGain: '+38,270%', contract: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', supply: '979.9M', fdv: '$1.39B', socials: { twitter: 'https://twitter.com/Popcatsolana', telegram: 'https://t.me', website: 'https://popcatsolana.xyz', docs: 'https://popcatsolana.xyz' }, about: 'Meme cat clicker phenomenon.' },
-        { symbol: 'WIF', name: 'dogwifhat', pair: 'WIF/SOL', price: 2.38, change24h: -4.1, vol24h: 48.9, csr: 2.1, platform: 'Raydium', createdDate: 'Nov 20, 2023', age: '3 Yrs', ath: 4.85, athDate: 'Mar 2024', athDrawdown: '-50.9%', atl: 0.0015, atlDate: 'Dec 2023', atlGain: '+158,560%', contract: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', supply: '998.9M', fdv: '$2.38B', socials: { twitter: 'https://twitter.com/dogwifcoin', telegram: 'https://t.me', website: 'https://dogwifcoin.org', docs: 'https://dogwifcoin.org' }, about: 'Cultural titan born on Solana depicting a Shiba pup in a pink beanie.' },
-        { symbol: 'BONK', name: 'Bonk', pair: 'BONK/SOL', price: 0.0000214, change24h: 11.2, vol24h: 14.2, csr: 4.8, platform: 'Raydium', createdDate: 'Dec 2022', age: '4 Yrs', ath: 0.000047, athDate: 'Mar 2024', athDrawdown: '-54.4%', atl: 0.000000086, atlDate: 'Dec 2022', atlGain: '+24,780%', contract: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', supply: '92.7T', fdv: '$1.98B', socials: { twitter: 'https://twitter.com/bonk_inu', telegram: 'https://t.me', website: 'https://bonkcoin.com', docs: 'https://bonkcoin.com' }, about: 'The original dog coin of Solana for the people.' },
-        { symbol: 'JUP', name: 'Jupiter', pair: 'JUP/SOL', price: 0.94, change24h: 3.1, vol24h: 24.8, csr: 1.2, platform: 'Orca', createdDate: 'Jan 31, 2024', age: '2 Yrs', ath: 2.04, athDate: 'Jan 2024', athDrawdown: '-53.9%', atl: 0.45, atlDate: 'Feb 2024', atlGain: '+108%', contract: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', supply: '10.0B', fdv: '$9.4B', socials: { twitter: 'https://twitter.com/JupiterExchange', telegram: 'https://t.me', website: 'https://jup.ag', docs: 'https://docs.jup.ag' }, about: 'Leading liquidity aggregator on Solana.' }
+        { symbol: 'ZERO', name: 'Terminal Zero', pair: 'ZERO/SOL', price: 0.0482, change24h: 34.8, vol24h: 4.2, csr: 14.2, platform: 'Raydium', createdDate: 'Oct 12, 2026', age: 'Genesis', ath: 0.052, athDate: 'Today', athDrawdown: '-7.3%', atl: 0.008, atlDate: 'Genesis', atlGain: '+502%', contract: 'Zero111111111111111111111111111111111111111', supply: '1.0B', fdv: '$48.2M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://terminalzero.fi' }, about: 'Ultra-low latency terminal with anti-cabal forensics.' },
+        { symbol: 'POPCAT', name: 'Popcat', pair: 'POPCAT/SOL', price: 1.42, change24h: 18.4, vol24h: 32.5, csr: 6.5, platform: 'Raydium', createdDate: 'Dec 2023', age: '3 Yrs', ath: 1.81, athDate: 'Oct 2024', athDrawdown: '-21.5%', atl: 0.0037, atlDate: 'Jan 2024', atlGain: '+38,270%', contract: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', supply: '979.9M', fdv: '$1.39B', socials: { twitter: 'https://twitter.com/Popcatsolana', telegram: 'https://t.me', website: 'https://popcatsolana.xyz' }, about: 'Iconic meme cat clicker community token.' },
+        { symbol: 'WIF', name: 'dogwifhat', pair: 'WIF/SOL', price: 2.38, change24h: -4.1, vol24h: 48.9, csr: 2.1, platform: 'Raydium', createdDate: 'Nov 20, 2023', age: '3 Yrs', ath: 4.85, athDate: 'Mar 2024', athDrawdown: '-50.9%', atl: 0.0015, atlDate: 'Dec 2023', atlGain: '+158,560%', contract: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', supply: '998.9M', fdv: '$2.38B', socials: { twitter: 'https://twitter.com/dogwifcoin', telegram: 'https://t.me', website: 'https://dogwifcoin.org' }, about: 'Cultural titan born on Solana depicting a Shiba pup in a pink beanie.' },
+        { symbol: 'BONK', name: 'Bonk', pair: 'BONK/SOL', price: 0.0000214, change24h: 11.2, vol24h: 14.2, csr: 4.8, platform: 'Raydium', createdDate: 'Dec 2022', age: '4 Yrs', ath: 0.000047, athDate: 'Mar 2024', athDrawdown: '-54.4%', atl: 0.000000086, atlDate: 'Dec 2022', atlGain: '+24,780%', contract: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', supply: '92.7T', fdv: '$1.98B', socials: { twitter: 'https://twitter.com/bonk_inu', telegram: 'https://t.me', website: 'https://bonkcoin.com' }, about: 'The community dog coin of Solana.' },
+        { symbol: 'JUP', name: 'Jupiter', pair: 'JUP/SOL', price: 0.94, change24h: 3.1, vol24h: 24.8, csr: 1.2, platform: 'Orca', createdDate: 'Jan 31, 2024', age: '2 Yrs', ath: 2.04, athDate: 'Jan 2024', athDrawdown: '-53.9%', atl: 0.45, atlDate: 'Feb 2024', atlGain: '+108%', contract: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN', supply: '10.0B', fdv: '$9.4B', socials: { twitter: 'https://twitter.com/JupiterExchange', telegram: 'https://t.me', website: 'https://jup.ag' }, about: 'Key liquidity aggregator and trading infrastructure.' },
+        { symbol: 'RAY', name: 'Raydium', pair: 'RAY/SOL', price: 1.82, change24h: 8.7, vol24h: 16.4, csr: 0.8, platform: 'Raydium', createdDate: 'Feb 2021', age: '5 Yrs', ath: 16.93, athDate: 'Sep 2021', athDrawdown: '-89.2%', atl: 0.13, atlDate: 'Dec 2022', atlGain: '+1,300%', contract: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', supply: '555M', fdv: '$1.01B', socials: { twitter: 'https://twitter.com/RaydiumProtocol', telegram: 'https://t.me', website: 'https://raydium.io' }, about: 'Core AMM on Solana.' },
+        { symbol: 'PYTH', name: 'Pyth Network', pair: 'PYTH/SOL', price: 0.35, change24h: -1.2, vol24h: 9.2, csr: 0.5, platform: 'Orca', createdDate: 'Nov 2023', age: '3 Yrs', ath: 1.15, athDate: 'Mar 2024', athDrawdown: '-69.5%', atl: 0.22, atlDate: 'Jan 2024', atlGain: '+59%', contract: 'HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3', supply: '10.0B', fdv: '$3.50B', socials: { twitter: 'https://twitter.com/PythNetwork', telegram: 'https://t.me', website: 'https://pyth.network' }, about: 'Real-time financial oracle network.' },
+        { symbol: 'BOME', name: 'BOOK OF MEME', pair: 'BOME/SOL', price: 0.0089, change24h: -5.4, vol24h: 12.1, csr: 9.4, platform: 'Raydium', createdDate: 'Mar 14, 2024', age: '2 Yrs', ath: 0.028, athDate: 'Mar 2024', athDrawdown: '-68.2%', atl: 0.00005, atlDate: 'Mar 2024', atlGain: '+17,700%', contract: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82', supply: '69.0B', fdv: '$614M', socials: { twitter: 'https://twitter.com/Darkfarms1', telegram: 'https://t.me', website: 'https://bome.meme' }, about: 'Meme art compendium by Darkfarms.' },
+        { symbol: 'MEW', name: 'cat in a dogs world', pair: 'MEW/SOL', price: 0.0094, change24h: 14.6, vol24h: 21.0, csr: 7.8, platform: 'Raydium', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.011, athDate: 'Oct 2024', athDrawdown: '-14.5%', atl: 0.0008, atlDate: 'Mar 2024', atlGain: '+1,075%', contract: 'MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5', supply: '88.8B', fdv: '$835M', socials: { twitter: 'https://twitter.com/MewsWorld', telegram: 'https://t.me', website: 'https://mew.xyz' }, about: 'White cat meme disrupting dog coin dominance.' },
+        { symbol: 'ORCA', name: 'Orca Dex', pair: 'ORCA/SOL', price: 2.85, change24h: 4.3, vol24h: 5.6, csr: 0.4, platform: 'Orca', createdDate: 'Aug 2021', age: '5 Yrs', ath: 20.30, athDate: 'Oct 2021', athDrawdown: '-85.9%', atl: 0.40, atlDate: 'Jun 2022', atlGain: '+612%', contract: 'orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE', supply: '100M', fdv: '$285M', socials: { twitter: 'https://twitter.com/orca_so', telegram: 'https://t.me', website: 'https://orca.so' }, about: 'Concentrated liquidity DEX.' },
+        { symbol: 'RENDER', name: 'Render Token', pair: 'RENDER/SOL', price: 5.40, change24h: 6.8, vol24h: 18.2, csr: 0.2, platform: 'Orca', createdDate: 'Nov 2023', age: '3 Yrs', ath: 13.53, athDate: 'Mar 2024', athDrawdown: '-60.1%', atl: 1.45, atlDate: 'Nov 2023', atlGain: '+272%', contract: 'rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof', supply: '532M', fdv: '$2.87B', socials: { twitter: 'https://twitter.com/rendernetwork', telegram: 'https://t.me', website: 'https://render.x.io' }, about: 'Decentralized GPU rendering network.' },
+        { symbol: 'HNT', name: 'Helium', pair: 'HNT/SOL', price: 6.25, change24h: -2.3, vol24h: 7.4, csr: 0.6, platform: 'Orca', createdDate: 'Apr 2023', age: '3 Yrs', ath: 55.22, athDate: 'Nov 2021', athDrawdown: '-88.7%', atl: 1.15, atlDate: 'Apr 2023', atlGain: '+443%', contract: 'hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux', supply: '223M', fdv: '$1.39B', socials: { twitter: 'https://twitter.com/helium', telegram: 'https://t.me', website: 'https://helium.com' }, about: 'Decentralized wireless infrastructure.' },
+        { symbol: 'DRIFT', name: 'Drift Protocol', pair: 'DRIFT/SOL', price: 0.52, change24h: 9.1, vol24h: 6.1, csr: 3.2, platform: 'Orca', createdDate: 'May 2024', age: '2 Yrs', ath: 0.95, athDate: 'May 2024', athDrawdown: '-45.2%', atl: 0.24, atlDate: 'Aug 2024', atlGain: '+116%', contract: 'DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7', supply: '1.0B', fdv: '$520M', socials: { twitter: 'https://twitter.com/DriftProtocol', telegram: 'https://t.me', website: 'https://drift.trade' }, about: 'On-chain perpetual and DEX hub.' },
+        { symbol: 'KMNO', name: 'Kamino Finance', pair: 'KMNO/SOL', price: 0.078, change24h: 2.2, vol24h: 3.8, csr: 1.5, platform: 'Orca', createdDate: 'Apr 2024', age: '2 Yrs', ath: 0.16, athDate: 'Apr 2024', athDrawdown: '-51.2%', atl: 0.032, atlDate: 'Aug 2024', atlGain: '+143%', contract: 'KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS', supply: '10.0B', fdv: '$780M', socials: { twitter: 'https://twitter.com/KaminoFinance', telegram: 'https://t.me', website: 'https://kamino.finance' }, about: 'Lending and leveraged liquidity engine.' },
+        { symbol: 'WEN', name: 'Wen', pair: 'WEN/SOL', price: 0.00012, change24h: -8.1, vol24h: 4.9, csr: 8.2, platform: 'Raydium', createdDate: 'Jan 2024', age: '2 Yrs', ath: 0.00051, athDate: 'Mar 2024', athDrawdown: '-76.4%', atl: 0.000045, atlDate: 'Jan 2024', atlGain: '+166%', contract: 'WENWENvqqNya429ubCdXr81ZmD69brwQaaBYY6p3LCU', supply: '727B', fdv: '$87.2M', socials: { twitter: 'https://twitter.com/wenwencoin', telegram: 'https://t.me', website: 'https://wenwencoin.com' }, about: 'Fractional cat poem NFT meme.' },
+        { symbol: 'SAMO', name: 'Samoyedcoin', pair: 'SAMO/SOL', price: 0.0098, change24h: 5.0, vol24h: 2.1, csr: 5.5, platform: 'Raydium', createdDate: 'Apr 2021', age: '5 Yrs', ath: 0.236, athDate: 'Oct 2021', athDrawdown: '-95.8%', atl: 0.0006, atlDate: 'Apr 2021', atlGain: '+1,533%', contract: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', supply: '4.7B', fdv: '$46.0M', socials: { twitter: 'https://twitter.com/samoyedcoin', telegram: 'https://t.me', website: 'https://samoyedcoin.com' }, about: 'Original Solana mascot dog coin.' },
+        { symbol: 'MYRO', name: 'Myro', pair: 'MYRO/SOL', price: 0.118, change24h: -3.6, vol24h: 5.4, csr: 11.2, platform: 'Raydium', createdDate: 'Nov 2023', age: '3 Yrs', ath: 0.44, athDate: 'Mar 2024', athDrawdown: '-73.1%', atl: 0.0019, atlDate: 'Nov 2023', atlGain: '+6,110%', contract: 'HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4', supply: '999M', fdv: '$117.8M', socials: { twitter: 'https://twitter.com/MyroSOL', telegram: 'https://t.me', website: 'https://myrothedog.com' }, about: 'Named after Solana co-founder pet dog.' },
+        { symbol: 'MOTHER', name: 'Mother Iggy', pair: 'MOTHER/SOL', price: 0.062, change24h: 22.4, vol24h: 8.9, csr: 13.5, platform: 'Raydium', createdDate: 'May 2024', age: '2 Yrs', ath: 0.24, athDate: 'Jun 2024', athDrawdown: '-74.1%', atl: 0.004, atlDate: 'May 2024', atlGain: '+1,450%', contract: '3S8qX1MsMqRbiwKg2cQnv7noGoMCxmmFHoyCXnnUpump', supply: '990M', fdv: '$61.3M', socials: { twitter: 'https://twitter.com/IGGYAZALEA', telegram: 'https://t.me', website: 'https://mother.to' }, about: 'Celebrity token launched by Iggy Azalea.' },
+        { symbol: 'GIGA', name: 'GigaChad', pair: 'GIGA/SOL', price: 0.048, change24h: 28.5, vol24h: 15.6, csr: 9.1, platform: 'Raydium', createdDate: 'Jan 2024', age: '2 Yrs', ath: 0.072, athDate: 'Oct 2024', athDrawdown: '-33.3%', atl: 0.0003, atlDate: 'Jan 2024', atlGain: '+15,900%', contract: '63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5HgJhpump', supply: '9.6B', fdv: '$460M', socials: { twitter: 'https://twitter.com/GigaChad_meme', telegram: 'https://t.me', website: 'https://gigachad.com' }, about: 'Discipline and fitness cultural movement.' },
+        { symbol: 'GOAT', name: 'Goatseus Maximus', pair: 'GOAT/SOL', price: 0.62, change24h: 54.0, vol24h: 48.0, csr: 11.0, platform: 'Raydium', createdDate: 'Oct 2024', age: '2 Yrs', ath: 0.88, athDate: 'Oct 2024', athDrawdown: '-29.5%', atl: 0.002, atlDate: 'Oct 2024', atlGain: '+30,900%', contract: 'CzLSujWBLFsSjncfkh59rUFqvafg26CugdSmqhy6pump', supply: '1.0B', fdv: '$620M', socials: { twitter: 'https://twitter.com/truth_terminal', telegram: 'https://t.me', website: 'https://truthterminal.ai' }, about: 'AI terminal autonomous agent memecoin.' }
+      ],
+      ETH: [
+        { symbol: 'PEPE', name: 'Pepe the Frog', pair: 'PEPE/WETH', price: 0.0000098, change24h: 18.4, vol24h: 142.0, csr: 3.2, platform: 'Uniswap v2', createdDate: 'Apr 14, 2023', age: '3 Yrs', ath: 0.0000171, athDate: 'May 2024', athDrawdown: '-42.7%', atl: 0.000000055, atlDate: 'Apr 2023', atlGain: '+17,700%', contract: '0x6982508145454Ce325dDbE47a25d4ec3d2311933', supply: '420.69T', fdv: '$4.12B', socials: { twitter: 'https://twitter.com/pepecoineth', telegram: 'https://t.me/pepecoineth', website: 'https://pepe.vip' }, about: 'Iconic decentralized cultural memecoin on Ethereum.' },
+        { symbol: 'SHIB', name: 'Shiba Inu', pair: 'SHIB/WETH', price: 0.0000178, change24h: 4.2, vol24h: 88.5, csr: 1.1, platform: 'Uniswap v2', createdDate: 'Aug 1, 2020', age: '6 Yrs', ath: 0.0000884, athDate: 'Oct 2021', athDrawdown: '-79.8%', atl: 0.000000000056, atlDate: 'Nov 2020', atlGain: '+31,785,000%', contract: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE', supply: '589.5T', fdv: '$10.49B', socials: { twitter: 'https://twitter.com/Shibtoken', telegram: 'https://t.me', website: 'https://shib.io' }, about: 'Meme ecosystem powering Shibarium L2.' },
+        { symbol: 'UNI', name: 'Uniswap Protocol', pair: 'UNI/WETH', price: 7.85, change24h: 2.9, vol24h: 42.0, csr: 0.2, platform: 'Uniswap v3', createdDate: 'Sep 17, 2020', age: '6 Yrs', ath: 44.97, athDate: 'May 2021', athDrawdown: '-82.5%', atl: 1.03, atlDate: 'Sep 2020', atlGain: '+662%', contract: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', supply: '1.0B', fdv: '$7.85B', socials: { twitter: 'https://twitter.com/Uniswap', telegram: 'https://t.me', website: 'https://uniswap.org' }, about: 'Automated liquidity protocol on Ethereum.' },
+        { symbol: 'LINK', name: 'Chainlink', pair: 'LINK/WETH', price: 11.40, change24h: 5.6, vol24h: 56.4, csr: 0.4, platform: 'Uniswap v3', createdDate: 'Sep 2017', age: '9 Yrs', ath: 52.88, athDate: 'May 2021', athDrawdown: '-78.4%', atl: 0.12, atlDate: 'Sep 2017', atlGain: '+9,400%', contract: '0x514910771AF9Ca656af840dff83E8264EcF986CA', supply: '1.0B', fdv: '$11.4B', socials: { twitter: 'https://twitter.com/chainlink', telegram: 'https://t.me', website: 'https://chain.link' }, about: 'Decentralized oracle data feeds.' },
+        { symbol: 'AAVE', name: 'Aave Protocol', pair: 'AAVE/WETH', price: 154.20, change24h: 8.1, vol24h: 62.0, csr: 0.3, platform: 'Uniswap v3', createdDate: 'Oct 2020', age: '6 Yrs', ath: 666.86, athDate: 'May 2021', athDrawdown: '-76.8%', atl: 25.92, atlDate: 'Nov 2020', atlGain: '+494%', contract: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9', supply: '16.0M', fdv: '$2.46B', socials: { twitter: 'https://twitter.com/aave', telegram: 'https://t.me', website: 'https://aave.com' }, about: 'Non-custodial liquidity market.' },
+        { symbol: 'MKR', name: 'Maker', pair: 'MKR/WETH', price: 1280.00, change24h: -1.4, vol24h: 28.5, csr: 0.1, platform: 'Uniswap v3', createdDate: 'Nov 2017', age: '9 Yrs', ath: 6339.02, athDate: 'May 2021', athDrawdown: '-79.8%', atl: 21.06, atlDate: 'Jan 2017', atlGain: '+6,000%', contract: '0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2', supply: '920K', fdv: '$1.17B', socials: { twitter: 'https://twitter.com/MakerDAO', telegram: 'https://t.me', website: 'https://makerdao.com' }, about: 'Credit protocol backing DAI.' },
+        { symbol: 'PENDLE', name: 'Pendle Finance', pair: 'PENDLE/WETH', price: 4.82, change24h: 12.8, vol24h: 31.4, csr: 1.5, platform: 'Uniswap v3', createdDate: 'Apr 28, 2021', age: '5 Yrs', ath: 7.52, athDate: 'Apr 2024', athDrawdown: '-35.9%', atl: 0.033, atlDate: 'Nov 2022', atlGain: '+14,500%', contract: '0x808507121B80c02388fAd14726482e061B8da827', supply: '258.4M', fdv: '$1.24B', socials: { twitter: 'https://twitter.com/pendle_fi', telegram: 'https://t.me', website: 'https://pendle.finance' }, about: 'Yield tokenization and trading protocol.' },
+        { symbol: 'ENA', name: 'Ethena', pair: 'ENA/USDT', price: 0.38, change24h: 14.2, vol24h: 45.0, csr: 2.1, platform: 'Uniswap v3', createdDate: 'Apr 2, 2024', age: '2 Yrs', ath: 1.52, athDate: 'Apr 2024', athDrawdown: '-75.0%', atl: 0.19, atlDate: 'Sep 2024', atlGain: '+100%', contract: '0x57e114B691Db790C35207b2e685D4A43181e6061', supply: '15.0B', fdv: '$5.70B', socials: { twitter: 'https://twitter.com/ethena_labs', telegram: 'https://t.me', website: 'https://ethena.fi' }, about: 'Synthetic dollar protocol USDe.' },
+        { symbol: 'FET', name: 'Artificial Superintelligence', pair: 'FET/WETH', price: 1.42, change24h: 7.3, vol24h: 38.6, csr: 1.8, platform: 'Uniswap v3', createdDate: 'Feb 2019', age: '7 Yrs', ath: 3.47, athDate: 'Mar 2024', athDrawdown: '-59.0%', atl: 0.008, atlDate: 'Mar 2020', atlGain: '+17,650%', contract: '0xaea46A60368A7bD060eec7DF8CBa43b7EF41Ad85', supply: '2.7B', fdv: '$3.83B', socials: { twitter: 'https://twitter.com/Fetch_ai', telegram: 'https://t.me', website: 'https://fetch.ai' }, about: 'Decentralized AI collective.' },
+        { symbol: 'MOG', name: 'Mog Coin', pair: 'MOG/WETH', price: 0.00000192, change24h: 26.5, vol24h: 24.0, csr: 8.4, platform: 'Uniswap v2', createdDate: 'Jul 20, 2023', age: '3 Yrs', ath: 0.0000024, athDate: 'Jul 2024', athDrawdown: '-20.0%', atl: 0.000000004, atlDate: 'Jul 2023', atlGain: '+47,900%', contract: '0xaaee1a9723aadb7afa2810263653a34ba2c21c7a', supply: '390.5T', fdv: '$749M', socials: { twitter: 'https://twitter.com/MogCoinEth', telegram: 'https://t.me', website: 'https://mogcoin.xyz' }, about: 'Internet cultural meme coin.' },
+        { symbol: 'SPX', name: 'SPX6900', pair: 'SPX/WETH', price: 0.78, change24h: 41.2, vol24h: 54.0, csr: 6.8, platform: 'Uniswap v2', createdDate: 'Aug 2023', age: '3 Yrs', ath: 0.98, athDate: 'Oct 2024', athDrawdown: '-20.4%', atl: 0.0012, atlDate: 'Feb 2024', atlGain: '+64,900%', contract: '0xE0f63A424a4439cBE457D80E4f4b51aD25b2c56C', supply: '930M', fdv: '$725M', socials: { twitter: 'https://twitter.com/spx6900', telegram: 'https://t.me', website: 'https://spx6900.com' }, about: 'Parody of global equities.' },
+        { symbol: 'TURBO', name: 'Turbo Token', pair: 'TURBO/WETH', price: 0.0094, change24h: -6.2, vol24h: 19.5, csr: 4.2, platform: 'Uniswap v2', createdDate: 'May 2023', age: '3 Yrs', ath: 0.013, athDate: 'Oct 2024', athDrawdown: '-27.6%', atl: 0.000065, atlDate: 'Sep 2023', atlGain: '+14,360%', contract: '0xA35923162C49cF95e6BF26623385eb431ad920D3', supply: '69.0B', fdv: '$648M', socials: { twitter: 'https://twitter.com/TurboToadToken', telegram: 'https://t.me', website: 'https://turbotoken.io' }, about: 'First meme token created by GPT-4.' },
+        { symbol: 'LDO', name: 'Lido DAO', pair: 'LDO/WETH', price: 1.18, change24h: 3.0, vol24h: 21.0, csr: 0.5, platform: 'Uniswap v3', createdDate: 'Jan 2021', age: '5 Yrs', ath: 18.62, athDate: 'May 2021', athDrawdown: '-93.6%', atl: 0.40, atlDate: 'Jun 2022', atlGain: '+195%', contract: '0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32', supply: '1.0B', fdv: '$1.18B', socials: { twitter: 'https://twitter.com/LidoFinance', telegram: 'https://t.me', website: 'https://lido.fi' }, about: 'Liquid staking protocol for Ethereum.' },
+        { symbol: 'CRV', name: 'Curve DAO', pair: 'CRV/WETH', price: 0.28, change24h: 1.4, vol24h: 12.4, csr: 0.8, platform: 'Curve Pool', createdDate: 'Aug 2020', age: '6 Yrs', ath: 60.50, athDate: 'Aug 2020', athDrawdown: '-99.5%', atl: 0.18, atlDate: 'Jun 2024', atlGain: '+55%', contract: '0xD533a949740bb3306d119CC777fa900bA034cd52', supply: '2.1B', fdv: '$588M', socials: { twitter: 'https://twitter.com/CurveFinance', telegram: 'https://t.me', website: 'https://curve.fi' }, about: 'Stablecoin and pegged asset DEX.' },
+        { symbol: 'BLUR', name: 'Blur', pair: 'BLUR/WETH', price: 0.24, change24h: 4.8, vol24h: 14.1, csr: 1.9, platform: 'Uniswap v3', createdDate: 'Feb 2023', age: '3 Yrs', ath: 5.02, athDate: 'Feb 2023', athDrawdown: '-95.2%', atl: 0.15, atlDate: 'Aug 2024', atlGain: '+60%', contract: '0x5283D292D08d63c44cd7747e9282FE5c225C65aB', supply: '3.0B', fdv: '$720M', socials: { twitter: 'https://twitter.com/blur_io', telegram: 'https://t.me', website: 'https://blur.io' }, about: 'NFT trading marketplace.' },
+        { symbol: 'ENS', name: 'Ethereum Name Service', pair: 'ENS/WETH', price: 17.20, change24h: 6.9, vol24h: 18.2, csr: 0.9, platform: 'Uniswap v3', createdDate: 'Nov 2021', age: '5 Yrs', ath: 85.69, athDate: 'Nov 2021', athDrawdown: '-79.9%', atl: 6.69, atlDate: 'Oct 2023', atlGain: '+157%', contract: '0xC18360217D8F7Ab5e7c516566761Ea12Ce7F9D72', supply: '100M', fdv: '$1.72B', socials: { twitter: 'https://twitter.com/ensdomains', telegram: 'https://t.me', website: 'https://ens.domains' }, about: 'Decentralized naming service.' },
+        { symbol: '1INCH', name: '1inch Network', pair: '1INCH/WETH', price: 0.26, change24h: -0.8, vol24h: 6.5, csr: 0.7, platform: 'Uniswap v3', createdDate: 'Dec 2020', age: '6 Yrs', ath: 7.87, athDate: 'May 2021', athDrawdown: '-96.6%', atl: 0.21, atlDate: 'Aug 2024', atlGain: '+23%', contract: '0x111111111117dC0aa78b770fA6A738034120C302', supply: '1.5B', fdv: '$390M', socials: { twitter: 'https://twitter.com/1inch', telegram: 'https://t.me', website: 'https://1inch.io' }, about: 'DEX routing aggregator.' },
+        { symbol: 'SUSHI', name: 'SushiSwap', pair: 'SUSHI/WETH', price: 0.74, change24h: 3.5, vol24h: 7.2, csr: 0.5, platform: 'SushiSwap', createdDate: 'Aug 2020', age: '6 Yrs', ath: 23.38, athDate: 'Mar 2021', athDrawdown: '-96.8%', atl: 0.47, atlDate: 'Nov 2020', atlGain: '+57%', contract: '0x6B3595068778DD592e39A122f4f5a5cF09C90fE2', supply: '280M', fdv: '$207M', socials: { twitter: 'https://twitter.com/SushiSwap', telegram: 'https://t.me', website: 'https://sushi.com' }, about: 'Multi-chain community DEX.' },
+        { symbol: 'NEIRO-ETH', name: 'First Neiro on Ethereum', pair: 'NEIRO/WETH', price: 0.00185, change24h: 32.4, vol24h: 46.0, csr: 7.5, platform: 'Uniswap v2', createdDate: 'Aug 2024', age: '2 Yrs', ath: 0.0022, athDate: 'Oct 2024', athDrawdown: '-15.9%', atl: 0.00003, atlDate: 'Aug 2024', atlGain: '+6,066%', contract: '0x812Ba41e071C7b7fA4EBcFB62dF5F45f6fA853Ee', supply: '420.69B', fdv: '$778M', socials: { twitter: 'https://twitter.com/neiroethcto', telegram: 'https://t.me', website: 'https://neiroeth.io' }, about: 'Community-led adopted Shiba Inu meme.' },
+        { symbol: 'DYDX', name: 'dYdX', pair: 'DYDX/WETH', price: 0.92, change24h: 5.1, vol24h: 11.0, csr: 0.8, platform: 'Uniswap v3', createdDate: 'Sep 2021', age: '5 Yrs', ath: 27.78, athDate: 'Sep 2021', athDrawdown: '-96.6%', atl: 0.80, atlDate: 'Sep 2024', atlGain: '+15%', contract: '0x92D6C1e31e14520e676a687F0a93788B716BEff5', supply: '1.0B', fdv: '$920M', socials: { twitter: 'https://twitter.com/dYdX', telegram: 'https://t.me', website: 'https://dydx.exchange' }, about: 'Decentralized perpetual contracts.' }
       ],
       BSC: [
-        { symbol: 'FOUR', name: 'Four Meme', pair: 'FOUR/WBNB', price: 0.0084, change24h: 52.4, vol24h: 2.1, csr: 8.4, platform: 'Four.meme', createdDate: 'Aug 15, 2024', age: '2 Yrs', ath: 0.0125, athDate: 'Sep 2024', athDrawdown: '-32.8%', atl: 0.0008, atlDate: 'Aug 2024', atlGain: '+950%', contract: '0x4444444444444444444444444444444444444444', supply: '1.0B', fdv: '$8.4M', socials: { twitter: 'https://twitter.com/four_meme', telegram: 'https://t.me', website: 'https://four.meme', docs: 'https://four.meme' }, about: 'Native BSC bonding curve and fair launchpad.' },
-        { symbol: 'CAKE', name: 'PancakeSwap', pair: 'CAKE/USDT', price: 2.45, change24h: 1.8, vol24h: 18.5, csr: 0.5, platform: 'PancakeSwap v3', createdDate: 'Sep 2020', age: '6 Yrs', ath: 44.18, athDate: 'Apr 2021', athDrawdown: '-94.4%', atl: 0.19, atlDate: 'Nov 2020', atlGain: '+1,189%', contract: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', supply: '388M', fdv: '$950M', socials: { twitter: 'https://twitter.com/PancakeSwap', telegram: 'https://t.me', website: 'https://pancakeswap.finance', docs: 'https://docs.pancakeswap.finance' }, about: 'Flagship AMM on BNB Smart Chain.' }
+        { symbol: 'FOUR', name: 'Four Meme', pair: 'FOUR/WBNB', price: 0.0084, change24h: 52.4, vol24h: 2.1, csr: 8.4, platform: 'Four.meme', createdDate: 'Aug 15, 2024', age: '2 Yrs', ath: 0.0125, athDate: 'Sep 2024', athDrawdown: '-32.8%', atl: 0.0008, atlDate: 'Aug 2024', atlGain: '+950%', contract: '0x4444444444444444444444444444444444444444', supply: '1.0B', fdv: '$8.4M', socials: { twitter: 'https://twitter.com/four_meme', telegram: 'https://t.me', website: 'https://four.meme' }, about: 'Native BSC bonding curve launchpad.' },
+        { symbol: 'CAKE', name: 'PancakeSwap', pair: 'CAKE/USDT', price: 2.45, change24h: 1.8, vol24h: 18.5, csr: 0.5, platform: 'PancakeSwap v3', createdDate: 'Sep 2020', age: '6 Yrs', ath: 44.18, athDate: 'Apr 2021', athDrawdown: '-94.4%', atl: 0.19, atlDate: 'Nov 2020', atlGain: '+1,189%', contract: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', supply: '388M', fdv: '$950M', socials: { twitter: 'https://twitter.com/PancakeSwap', telegram: 'https://t.me', website: 'https://pancakeswap.finance' }, about: 'Flagship AMM on BNB Chain.' },
+        { symbol: 'BABYBNB', name: 'Baby BNB', pair: 'BABYBNB/WBNB', price: 0.00000042, change24h: -12.4, vol24h: 0.84, csr: 38.6, platform: 'PancakeSwap v2', createdDate: 'Sep 2024', age: '2 Yrs', ath: 0.0000018, athDate: 'Sep 2024', athDrawdown: '-76.6%', atl: 0.0000001, atlDate: 'Sep 2024', atlGain: '+320%', contract: '0x2d424b301416e788bc5f60fc2e3428f526b7858c', supply: '1.0T', fdv: '$420K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://babybnb.io' }, about: 'Community meme token on BSC.' },
+        { symbol: 'FLOKI', name: 'Floki Inu', pair: 'FLOKI/WBNB', price: 0.000155, change24h: 7.8, vol24h: 22.4, csr: 2.3, platform: 'PancakeSwap v2', createdDate: 'Jul 2021', age: '5 Yrs', ath: 0.000343, athDate: 'Jun 2024', athDrawdown: '-54.8%', atl: 0.00000008, atlDate: 'Jul 2021', atlGain: '+193,650%', contract: '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E', supply: '9.6T', fdv: '$1.48B', socials: { twitter: 'https://twitter.com/RealFlokiInu', telegram: 'https://t.me', website: 'https://floki.com' }, about: 'Utility meme ecosystem with Valhalla game.' },
+        { symbol: 'BAKE', name: 'BakeryToken', pair: 'BAKE/WBNB', price: 0.24, change24h: -3.2, vol24h: 3.1, csr: 1.1, platform: 'BakerySwap', createdDate: 'Sep 2020', age: '6 Yrs', ath: 8.48, athDate: 'May 2021', athDrawdown: '-97.1%', atl: 0.008, atlDate: 'Nov 2020', atlGain: '+2,900%', contract: '0xE02dF9e4e622CaME6978438186D59D3903BE9464', supply: '289M', fdv: '$69.3M', socials: { twitter: 'https://twitter.com/bakery_swap', telegram: 'https://t.me', website: 'https://bakeryswap.org' }, about: 'AMM and NFT launchpad on BNB Chain.' },
+        { symbol: 'XVS', name: 'Venus Protocol', pair: 'XVS/USDT', price: 7.20, change24h: 4.1, vol24h: 6.8, csr: 0.4, platform: 'PancakeSwap v3', createdDate: 'Oct 2020', age: '6 Yrs', ath: 147.02, athDate: 'May 2021', athDrawdown: '-95.1%', atl: 1.65, atlDate: 'Oct 2020', atlGain: '+336%', contract: '0xcF6BB5307190E0BBC2114484557Da872956107a6', supply: '30.0M', fdv: '$216M', socials: { twitter: 'https://twitter.com/VenusProtocol', telegram: 'https://t.me', website: 'https://venus.io' }, about: 'Algorithmic money market system.' },
+        { symbol: 'BNX', name: 'BinaryX', pair: 'BNX/USDT', price: 0.62, change24h: 11.4, vol24h: 14.2, csr: 1.8, platform: 'PancakeSwap v3', createdDate: 'Feb 2023', age: '3 Yrs', ath: 1.74, athDate: 'Jul 2024', athDrawdown: '-64.3%', atl: 0.17, atlDate: 'Sep 2023', atlGain: '+264%', contract: '0x5b1f874d0b0C834302eB240F33298237035690Ab', supply: '378M', fdv: '$234M', socials: { twitter: 'https://twitter.com/binary_x', telegram: 'https://t.me', website: 'https://binaryx.pro' }, about: 'GameFi platform and launchpad.' },
+        { symbol: 'TWT', name: 'Trust Wallet Token', pair: 'TWT/USDT', price: 0.98, change24h: 2.0, vol24h: 5.4, csr: 0.3, platform: 'PancakeSwap v3', createdDate: 'Aug 2020', age: '6 Yrs', ath: 2.72, athDate: 'Dec 2022', athDrawdown: '-63.9%', atl: 0.006, atlDate: 'Jun 2020', atlGain: '+16,233%', contract: '0x4B0F1812e5Df2A0f6663E1F742E407abA843595b', supply: '1.0B', fdv: '$980M', socials: { twitter: 'https://twitter.com/TrustWallet', telegram: 'https://t.me', website: 'https://trustwallet.com' }, about: 'Self-custody wallet token.' },
+        { symbol: 'BSW', name: 'Biswap', pair: 'BSW/WBNB', price: 0.064, change24h: -1.5, vol24h: 1.8, csr: 1.0, platform: 'Biswap', createdDate: 'May 2021', age: '5 Yrs', ath: 2.13, athDate: 'Dec 2021', athDrawdown: '-96.9%', atl: 0.051, atlDate: 'Aug 2024', atlGain: '+25%', contract: '0x965F527D9159dCe6288a2219DB51fc6Eef120dD1', supply: '700M', fdv: '$44.8M', socials: { twitter: 'https://twitter.com/Biswap_Dex', telegram: 'https://t.me', website: 'https://biswap.org' }, about: 'Low fee DEX on BNB Chain.' },
+        { symbol: 'THE', name: 'THENA DEX', pair: 'THE/WBNB', price: 0.22, change24h: 15.3, vol24h: 3.9, csr: 4.2, platform: 'Thena', createdDate: 'Jan 2023', age: '3 Yrs', ath: 0.88, athDate: 'Feb 2023', athDrawdown: '-75.0%', atl: 0.054, atlDate: 'Oct 2023', atlGain: '+307%', contract: '0xF4C8E32Eadec4BFe97E0F595AdD0f4450a863a11', supply: '206M', fdv: '$45.3M', socials: { twitter: 'https://twitter.com/ThenaFi_', telegram: 'https://t.me', website: 'https://thena.fi' }, about: 've(3,3) liquidity protocol.' },
+        { symbol: 'ALPACA', name: 'Alpaca Finance', pair: 'ALPACA/WBNB', price: 0.16, change24h: 6.5, vol24h: 2.4, csr: 0.8, platform: 'PancakeSwap v3', createdDate: 'Feb 2021', age: '5 Yrs', ath: 8.65, athDate: 'Mar 2021', athDrawdown: '-98.1%', atl: 0.11, atlDate: 'Aug 2024', atlGain: '+45%', contract: '0x8F0528cE5Ff7B55E22708431FcCEB2b52EBE0362', supply: '188M', fdv: '$30.0M', socials: { twitter: 'https://twitter.com/AlpacaFinance', telegram: 'https://t.me', website: 'https://alpacafinance.org' }, about: 'Leveraged yield farming platform.' },
+        { symbol: 'ID', name: 'SPACE ID', pair: 'ID/USDT', price: 0.41, change24h: 3.8, vol24h: 8.5, csr: 1.4, platform: 'PancakeSwap v3', createdDate: 'Mar 2023', age: '3 Yrs', ath: 1.03, athDate: 'Apr 2023', athDrawdown: '-60.1%', atl: 0.17, atlDate: 'Oct 2023', atlGain: '+141%', contract: '0x2dFce49d24330bF47E356504b2135a96016974d3', supply: '2.0B', fdv: '$820M', socials: { twitter: 'https://twitter.com/SpaceIDProtocol', telegram: 'https://t.me', website: 'https://space.id' }, about: 'Universal Web3 domain identity.' },
+        { symbol: 'MBOX', name: 'MOBOX', pair: 'MBOX/USDT', price: 0.17, change24h: -4.0, vol24h: 2.6, csr: 1.9, platform: 'PancakeSwap v3', createdDate: 'Apr 2021', age: '5 Yrs', ath: 15.68, athDate: 'Nov 2021', athDrawdown: '-98.9%', atl: 0.12, atlDate: 'Aug 2024', atlGain: '+41%', contract: '0x3203c9E46422fe9772b815f61A8286aB3B604771', supply: '1.0B', fdv: '$170M', socials: { twitter: 'https://twitter.com/MOBOX_Official', telegram: 'https://t.me', website: 'https://mobox.io' }, about: 'Gaming metaverse platform.' },
+        { symbol: 'CATI', name: 'Catizen BSC', pair: 'CATI/USDT', price: 0.45, change24h: 8.9, vol24h: 11.3, csr: 3.5, platform: 'PancakeSwap v3', createdDate: 'Sep 2024', age: '2 Yrs', ath: 1.11, athDate: 'Sep 2024', athDrawdown: '-59.4%', atl: 0.38, atlDate: 'Oct 2024', atlGain: '+18%', contract: '0x3030303030303030303030303030303030303030', supply: '1.0B', fdv: '$450M', socials: { twitter: 'https://twitter.com/CatizenAI', telegram: 'https://t.me', website: 'https://catizen.ai' }, about: 'Telegram and web3 gaming hub.' },
+        { symbol: 'DOGS', name: 'Dogs BSC', pair: 'DOGS/USDT', price: 0.00068, change24h: -5.2, vol24h: 9.8, csr: 2.8, platform: 'PancakeSwap v3', createdDate: 'Aug 2024', age: '2 Yrs', ath: 0.0016, athDate: 'Aug 2024', athDrawdown: '-57.5%', atl: 0.00055, atlDate: 'Oct 2024', atlGain: '+23%', contract: '0x4040404040404040404040404040404040404040', supply: '550B', fdv: '$374M', socials: { twitter: 'https://twitter.com/real_dogs_coin', telegram: 'https://t.me', website: 'https://dogs.org' }, about: 'Community token inspired by Spotty dog.' },
+        { symbol: 'HMSTR', name: 'Hamster Kombat BSC', pair: 'HMSTR/USDT', price: 0.0034, change24h: -8.4, vol24h: 7.2, csr: 4.1, platform: 'PancakeSwap v3', createdDate: 'Sep 2024', age: '2 Yrs', ath: 0.012, athDate: 'Sep 2024', athDrawdown: '-71.6%', atl: 0.0028, atlDate: 'Oct 2024', atlGain: '+21%', contract: '0x5050505050505050505050505050505050505050', supply: '100B', fdv: '$340M', socials: { twitter: 'https://twitter.com/hamster_kombat', telegram: 'https://t.me', website: 'https://hamsterkombat.io' }, about: 'Tap-to-earn viral crypto exchange simulator.' },
+        { symbol: 'NOT', name: 'Notcoin BSC', pair: 'NOT/USDT', price: 0.0075, change24h: 4.6, vol24h: 12.0, csr: 1.5, platform: 'PancakeSwap v3', createdDate: 'May 2024', age: '2 Yrs', ath: 0.028, athDate: 'Jun 2024', athDrawdown: '-73.2%', atl: 0.0046, atlDate: 'May 2024', atlGain: '+63%', contract: '0x6060606060606060606060606060606060606060', supply: '102B', fdv: '$765M', socials: { twitter: 'https://twitter.com/thenotcoin', telegram: 'https://t.me', website: 'https://notco.in' }, about: 'Pioneering tap-to-earn clicker community token.' },
+        { symbol: 'BEL', name: 'Bella Protocol', pair: 'BEL/USDT', price: 0.58, change24h: 9.4, vol24h: 4.2, csr: 1.7, platform: 'PancakeSwap v3', createdDate: 'Sep 2020', age: '6 Yrs', ath: 9.98, athDate: 'Sep 2020', athDrawdown: '-94.1%', atl: 0.21, atlDate: 'May 2022', atlGain: '+176%', contract: '0xa0ff756e09a3d44e590000000000000000000000', supply: '100M', fdv: '$58.0M', socials: { twitter: 'https://twitter.com/BellaProtocol', telegram: 'https://t.me', website: 'https://bella.fi' }, about: 'Automated DeFi suite and yield products.' },
+        { symbol: 'SFP', name: 'SafePal', pair: 'SFP/USDT', price: 0.71, change24h: 0.8, vol24h: 2.9, csr: 0.4, platform: 'PancakeSwap v3', createdDate: 'Feb 2021', age: '5 Yrs', ath: 4.39, athDate: 'Feb 2021', athDrawdown: '-83.8%', atl: 0.26, atlDate: 'Jun 2022', atlGain: '+173%', contract: '0xd72f235300000000000000000000000000000000', supply: '500M', fdv: '$355M', socials: { twitter: 'https://twitter.com/iSafePal', telegram: 'https://t.me', website: 'https://safepal.com' }, about: 'Non-custodial hardware and software wallet.' },
+        { symbol: 'C98', name: 'Coin98', pair: 'C98/USDT', price: 0.14, change24h: 3.3, vol24h: 3.2, csr: 0.6, platform: 'PancakeSwap v3', createdDate: 'Jul 2021', age: '5 Yrs', ath: 6.42, athDate: 'Aug 2021', athDrawdown: '-97.8%', atl: 0.11, atlDate: 'Aug 2024', atlGain: '+27%', contract: '0xaec945e04bFf421f2c7b5fB144a15998df9F1111', supply: '1.0B', fdv: '$140M', socials: { twitter: 'https://twitter.com/coin98_wallet', telegram: 'https://t.me', website: 'https://coin98.com' }, about: 'All-in-one DeFi gateway.' }
       ],
       ROBINHOOD: [
-        { symbol: 'ROBIN', name: 'Robin Protocol', pair: 'ROBIN/ETH', price: 1.24, change24h: 88.5, vol24h: 6.4, csr: 6.2, platform: 'RobinSwap', createdDate: 'Jun 4, 2026', age: '4 Mos', ath: 1.45, athDate: 'Yesterday', athDrawdown: '-14.4%', atl: 0.10, atlDate: 'Jun 2026', atlGain: '+1,140%', contract: '0x4663000000000000000000000000000000004663', supply: '20.0M', fdv: '$24.8M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com', docs: 'https://robinhood.com' }, about: 'Native gas and governance token for Robinhood Chain Orbit L2.' },
-        { symbol: 'TSLAx', name: 'Tesla Tokenized RWA', pair: 'TSLAx/USDC', price: 242.15, change24h: 3.2, vol24h: 21.5, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 10, 2026', age: '10 Mos', ath: 268.00, athDate: 'Jul 2026', athDrawdown: '-9.6%', atl: 165.00, atlDate: 'Apr 2026', atlGain: '+46.7%', contract: '0x751a00000000000000000000000000000000751a', supply: '750K', fdv: '$181.6M', socials: { twitter: 'https://twitter.com/tesla', telegram: 'https://t.me', website: 'https://ir.tesla.com', docs: 'https://ir.tesla.com' }, about: 'Tokenized common equity shares of Tesla Inc. backed 1:1 by reserves.' }
+        { symbol: 'ROBIN', name: 'Robin Protocol', pair: 'ROBIN/ETH', price: 1.24, change24h: 88.5, vol24h: 6.4, csr: 6.2, platform: 'RobinSwap', createdDate: 'Jun 4, 2026', age: '4 Mos', ath: 1.45, athDate: 'Yesterday', athDrawdown: '-14.4%', atl: 0.10, atlDate: 'Jun 2026', atlGain: '+1,140%', contract: '0x4663000000000000000000000000000000004663', supply: '20.0M', fdv: '$24.8M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Native gas and governance token for Robinhood Chain Arbitrum Orbit L2.' },
+        { symbol: 'TSLAx', name: 'Tesla Tokenized RWA', pair: 'TSLAx/USDC', price: 242.15, change24h: 3.2, vol24h: 21.5, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 10, 2026', age: '10 Mos', ath: 268.00, athDate: 'Jul 2026', athDrawdown: '-9.6%', atl: 165.00, atlDate: 'Apr 2026', atlGain: '+46.7%', contract: '0x751a00000000000000000000000000000000751a', supply: '750K', fdv: '$181.6M', socials: { twitter: 'https://twitter.com/tesla', telegram: 'https://t.me', website: 'https://ir.tesla.com' }, about: 'Tokenized common equity shares of Tesla Inc. backed 1:1 by reserves.' },
+        { symbol: 'NVDAx', name: 'Nvidia Tokenized RWA', pair: 'NVDAx/USDC', price: 134.80, change24h: 5.6, vol24h: 38.2, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 15, 2026', age: '10 Mos', ath: 144.00, athDate: 'Aug 2026', athDrawdown: '-6.3%', atl: 88.00, atlDate: 'Apr 2026', atlGain: '+53.1%', contract: '0x6e76000000000000000000000000000000006e76', supply: '2.5M', fdv: '$337.0M', socials: { twitter: 'https://twitter.com/nvidia', telegram: 'https://t.me', website: 'https://nvidia.com' }, about: 'Tokenized equity shares of Nvidia Corporation.' },
+        { symbol: 'AAPLx', name: 'Apple Tokenized RWA', pair: 'AAPLx/USDC', price: 228.40, change24h: 1.4, vol24h: 18.4, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 237.00, athDate: 'Jul 2026', athDrawdown: '-3.6%', atl: 172.00, atlDate: 'Mar 2026', atlGain: '+32.7%', contract: '0x6161000000000000000000000000000000006161', supply: '1.2M', fdv: '$274.0M', socials: { twitter: 'https://twitter.com/apple', telegram: 'https://t.me', website: 'https://apple.com' }, about: 'Tokenized common equity shares of Apple Inc.' },
+        { symbol: 'MSFTx', name: 'Microsoft Tokenized RWA', pair: 'MSFTx/USDC', price: 418.90, change24h: 2.1, vol24h: 14.6, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 442.00, athDate: 'Jul 2026', athDrawdown: '-5.2%', atl: 385.00, atlDate: 'Apr 2026', atlGain: '+8.8%', contract: '0x6d73000000000000000000000000000000006d73', supply: '900K', fdv: '$377.0M', socials: { twitter: 'https://twitter.com/microsoft', telegram: 'https://t.me', website: 'https://microsoft.com' }, about: 'Tokenized shares of Microsoft Corporation.' },
+        { symbol: 'AMZNx', name: 'Amazon Tokenized RWA', pair: 'AMZNx/USDC', price: 186.50, change24h: 4.0, vol24h: 16.2, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 198.00, athDate: 'Jul 2026', athDrawdown: '-5.8%', atl: 162.00, atlDate: 'Apr 2026', atlGain: '+15.1%', contract: '0x616d00000000000000000000000000000000616d', supply: '1.1M', fdv: '$205.1M', socials: { twitter: 'https://twitter.com/amazon', telegram: 'https://t.me', website: 'https://amazon.com' }, about: 'Tokenized equity shares of Amazon.com Inc.' },
+        { symbol: 'HOODIE', name: 'Hoodie Culture', pair: 'HOODIE/ETH', price: 0.019, change24h: -8.5, vol24h: 0.42, csr: 29.4, platform: 'RobinSwap', createdDate: 'Aug 2026', age: '2 Mos', ath: 0.045, athDate: 'Aug 2026', athDrawdown: '-57.7%', atl: 0.005, atlDate: 'Aug 2026', atlGain: '+280%', contract: '0x686f00000000000000000000000000000000686f', supply: '100M', fdv: '$1.9M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Meme culture token of Robinhood L2.' },
+        { symbol: 'COINx', name: 'Coinbase Tokenized RWA', pair: 'COINx/USDC', price: 212.00, change24h: 9.8, vol24h: 24.1, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 254.00, athDate: 'Mar 2026', athDrawdown: '-16.5%', atl: 145.00, atlDate: 'Apr 2026', atlGain: '+46.2%', contract: '0x636f00000000000000000000000000000000636f', supply: '800K', fdv: '$169.6M', socials: { twitter: 'https://twitter.com/coinbase', telegram: 'https://t.me', website: 'https://coinbase.com' }, about: 'Tokenized common equity shares of Coinbase Global Inc.' },
+        { symbol: 'MSTRx', name: 'MicroStrategy RWA', pair: 'MSTRx/USDC', price: 194.20, change24h: 16.4, vol24h: 31.0, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 215.00, athDate: 'Oct 2026', athDrawdown: '-9.6%', atl: 98.00, atlDate: 'Apr 2026', atlGain: '+98.1%', contract: '0x6d73740000000000000000000000000000000000', supply: '1.5M', fdv: '$291.3M', socials: { twitter: 'https://twitter.com/MicroStrategy', telegram: 'https://t.me', website: 'https://microstrategy.com' }, about: 'Tokenized equity shares of MicroStrategy Inc.' },
+        { symbol: 'PLTRx', name: 'Palantir Tokenized RWA', pair: 'PLTRx/USDC', price: 42.80, change24h: 12.5, vol24h: 19.8, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Mar 2026', age: '8 Mos', ath: 44.50, athDate: 'Oct 2026', athDrawdown: '-3.8%', atl: 21.00, atlDate: 'Apr 2026', atlGain: '+103.8%', contract: '0x706c00000000000000000000000000000000706c', supply: '2.0M', fdv: '$85.6M', socials: { twitter: 'https://twitter.com/PalantirTech', telegram: 'https://t.me', website: 'https://palantir.com' }, about: 'Tokenized common stock of Palantir Technologies.' },
+        { symbol: 'HOODx', name: 'Robinhood Markets RWA', pair: 'HOODx/USDC', price: 26.50, change24h: 6.7, vol24h: 11.2, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 2026', age: '10 Mos', ath: 28.00, athDate: 'Jul 2026', athDrawdown: '-5.3%', atl: 14.50, atlDate: 'Apr 2026', atlGain: '+82.7%', contract: '0x686f6f0000000000000000000000000000000000', supply: '3.0M', fdv: '$79.5M', socials: { twitter: 'https://twitter.com/RobinhoodApp', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Tokenized common stock of Robinhood Markets Inc.' },
+        { symbol: 'ORBIT', name: 'Orbit Velocity', pair: 'ORBIT/ETH', price: 0.38, change24h: 24.2, vol24h: 3.8, csr: 7.1, platform: 'RobinSwap', createdDate: 'Jul 2026', age: '3 Mos', ath: 0.45, athDate: 'Aug 2026', athDrawdown: '-15.5%', atl: 0.12, atlDate: 'Jul 2026', atlGain: '+216.6%', contract: '0x6f72620000000000000000000000000000000000', supply: '50.0M', fdv: '$19.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Arbitrum Orbit sequencer performance token.' },
+        { symbol: 'SHERIFF', name: 'Sheriff Nottingham', pair: 'SHERIFF/ETH', price: 0.0048, change24h: 41.0, vol24h: 1.9, csr: 18.5, platform: 'RobinSwap', createdDate: 'Aug 2026', age: '2 Mos', ath: 0.0075, athDate: 'Sep 2026', athDrawdown: '-36.0%', atl: 0.001, atlDate: 'Aug 2026', atlGain: '+380%', contract: '0x7368650000000000000000000000000000000000', supply: '500M', fdv: '$2.4M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Community satirical token.' },
+        { symbol: 'METAx', name: 'Meta Platforms RWA', pair: 'METAx/USDC', price: 585.00, change24h: 2.8, vol24h: 22.0, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 602.00, athDate: 'Oct 2026', athDrawdown: '-2.8%', atl: 460.00, atlDate: 'Apr 2026', atlGain: '+27.1%', contract: '0x6d65740000000000000000000000000000000000', supply: '600K', fdv: '$351.0M', socials: { twitter: 'https://twitter.com/Meta', telegram: 'https://t.me', website: 'https://meta.com' }, about: 'Tokenized common stock of Meta Platforms Inc.' },
+        { symbol: 'GOOGx', name: 'Alphabet Google RWA', pair: 'GOOGx/USDC', price: 165.20, change24h: 1.1, vol24h: 12.8, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 191.00, athDate: 'Jul 2026', athDrawdown: '-13.5%', atl: 148.00, atlDate: 'Mar 2026', atlGain: '+11.6%', contract: '0x676f6f0000000000000000000000000000000000', supply: '1.4M', fdv: '$231.2M', socials: { twitter: 'https://twitter.com/Google', telegram: 'https://t.me', website: 'https://abc.xyz' }, about: 'Tokenized common equity shares of Alphabet Inc.' },
+        { symbol: 'AMDx', name: 'AMD Tokenized RWA', pair: 'AMDx/USDC', price: 156.40, change24h: 4.4, vol24h: 15.6, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Feb 2026', age: '9 Mos', ath: 185.00, athDate: 'Mar 2026', athDrawdown: '-15.4%', atl: 132.00, atlDate: 'Aug 2026', atlGain: '+18.4%', contract: '0x616d640000000000000000000000000000000000', supply: '1.2M', fdv: '$187.6M', socials: { twitter: 'https://twitter.com/AMD', telegram: 'https://t.me', website: 'https://amd.com' }, about: 'Tokenized shares of Advanced Micro Devices.' },
+        { symbol: 'SPYx', name: 'S&P 500 Index RWA', pair: 'SPYx/USDC', price: 582.00, change24h: 0.8, vol24h: 42.0, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 2026', age: '10 Mos', ath: 588.00, athDate: 'Oct 2026', athDrawdown: '-1.0%', atl: 495.00, atlDate: 'Apr 2026', atlGain: '+17.5%', contract: '0x7370790000000000000000000000000000000000', supply: '1.0M', fdv: '$582.0M', socials: { twitter: 'https://twitter.com/SPDJIndices', telegram: 'https://t.me', website: 'https://spglobal.com' }, about: 'Tokenized tracker of the S&P 500 Index.' },
+        { symbol: 'QQQx', name: 'Nasdaq 100 Index RWA', pair: 'QQQx/USDC', price: 491.50, change24h: 1.3, vol24h: 38.5, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 2026', age: '10 Mos', ath: 502.00, athDate: 'Jul 2026', athDrawdown: '-2.0%', atl: 418.00, atlDate: 'Apr 2026', atlGain: '+17.5%', contract: '0x7171710000000000000000000000000000000000', supply: '950K', fdv: '$466.9M', socials: { twitter: 'https://twitter.com/Nasdaq', telegram: 'https://t.me', website: 'https://nasdaq.com' }, about: 'Tokenized tracker of the Nasdaq 100 Index.' },
+        { symbol: 'GOLDx', name: 'Tokenized Gold RWA', pair: 'GOLDx/USDC', price: 266.40, change24h: 0.4, vol24h: 14.1, csr: 0.0, platform: 'Orbit RWA Desk', createdDate: 'Jan 2026', age: '10 Mos', ath: 270.00, athDate: 'Oct 2026', athDrawdown: '-1.3%', atl: 212.00, atlDate: 'Feb 2026', atlGain: '+25.6%', contract: '0x676f6c6400000000000000000000000000000000', supply: '800K', fdv: '$213.1M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Physical fine gold bars stored in vaults.' },
+        { symbol: 'FEATHER', name: 'Green Cap Feather', pair: 'FEATHER/ETH', price: 0.0021, change24h: 19.8, vol24h: 0.88, csr: 21.0, platform: 'RobinSwap', createdDate: 'Aug 2026', age: '2 Mos', ath: 0.0035, athDate: 'Sep 2026', athDrawdown: '-40.0%', atl: 0.0006, atlDate: 'Aug 2026', atlGain: '+250%', contract: '0x6665610000000000000000000000000000000000', supply: '400M', fdv: '$840K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Ecosystem meme mascot.' }
       ],
       BASE: [
-        { symbol: 'BRETT', name: 'Brett on Base', pair: 'BRETT/WETH', price: 0.089, change24h: 14.1, vol24h: 12.4, csr: 5.1, platform: 'Aerodrome', createdDate: 'Feb 24, 2024', age: '2 Yrs', ath: 0.193, athDate: 'Jun 2024', athDrawdown: '-53.8%', atl: 0.0008, atlDate: 'Feb 2024', atlGain: '+11,025%', contract: '0x532f27101965dd16442E59d40670FaF5eBB142E4', supply: '10.0B', fdv: '$890.0M', socials: { twitter: 'https://twitter.com/BasedBrett', telegram: 'https://t.me', website: 'https://basedbrett.com', docs: 'https://basedbrett.com' }, about: 'Mascot of Base ecosystem inspired by Matt Furie comic.' }
+        { symbol: 'BRETT', name: 'Brett on Base', pair: 'BRETT/WETH', price: 0.089, change24h: 14.1, vol24h: 12.4, csr: 5.1, platform: 'Aerodrome', createdDate: 'Feb 24, 2024', age: '2 Yrs', ath: 0.193, athDate: 'Jun 2024', athDrawdown: '-53.8%', atl: 0.0008, atlDate: 'Feb 2024', atlGain: '+11,025%', contract: '0x532f27101965dd16442E59d40670FaF5eBB142E4', supply: '10.0B', fdv: '$890.0M', socials: { twitter: 'https://twitter.com/BasedBrett', telegram: 'https://t.me', website: 'https://basedbrett.com' }, about: 'Legendary mascot of the Base ecosystem.' },
+        { symbol: 'DEGEN', name: 'Degen', pair: 'DEGEN/WETH', price: 0.0092, change24h: -3.8, vol24h: 4.1, csr: 11.4, platform: 'Uniswap v3', createdDate: 'Jan 2024', age: '2 Yrs', ath: 0.064, athDate: 'Mar 2024', athDrawdown: '-85.6%', atl: 0.00002, atlDate: 'Jan 2024', atlGain: '+45,900%', contract: '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed', supply: '36.9B', fdv: '$339M', socials: { twitter: 'https://twitter.com/degentokenbase', telegram: 'https://t.me', website: 'https://degen.tips' }, about: 'Reward token for Farcaster decentralized social.' },
+        { symbol: 'TOSHI', name: 'Toshi Cat', pair: 'TOSHI/WETH', price: 0.00028, change24h: 21.0, vol24h: 8.9, csr: 4.5, platform: 'Aerodrome', createdDate: 'Aug 2023', age: '3 Yrs', ath: 0.00079, athDate: 'Apr 2024', athDrawdown: '-64.5%', atl: 0.000001, atlDate: 'Aug 2023', atlGain: '+27,900%', contract: '0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4', supply: '420.69B', fdv: '$117.8M', socials: { twitter: 'https://twitter.com/Toshi_base', telegram: 'https://t.me', website: 'https://toshithecat.com' }, about: 'Named after Brian Armstrong cat and Satoshi.' },
+        { symbol: 'AERO', name: 'Aerodrome Finance', pair: 'AERO/USDC', price: 1.25, change24h: 7.4, vol24h: 28.5, csr: 0.4, platform: 'Aerodrome', createdDate: 'Aug 2023', age: '3 Yrs', ath: 2.37, athDate: 'Apr 2024', athDrawdown: '-47.2%', atl: 0.075, atlDate: 'Oct 2023', atlGain: '+1,566%', contract: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', supply: '1.2B', fdv: '$1.50B', socials: { twitter: 'https://twitter.com/AerodromeFi', telegram: 'https://t.me', website: 'https://aerodrome.finance' }, about: 'Flagship trading and liquidity hub of Base.' },
+        { symbol: 'VIRTUAL', name: 'Virtuals Protocol', pair: 'VIRTUAL/WETH', price: 0.48, change24h: 68.2, vol24h: 34.0, csr: 7.9, platform: 'Uniswap v3', createdDate: 'Jan 2024', age: '2 Yrs', ath: 0.65, athDate: 'Oct 2024', athDrawdown: '-26.1%', atl: 0.018, atlDate: 'Jan 2024', atlGain: '+2,566%', contract: '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b', supply: '1.0B', fdv: '$480M', socials: { twitter: 'https://twitter.com/virtuals_io', telegram: 'https://t.me', website: 'https://virtuals.io' }, about: 'AI agents and virtual character tokenization.' },
+        { symbol: 'KEYCAT', name: 'Keyboard Cat', pair: 'KEYCAT/WETH', price: 0.0068, change24h: -8.1, vol24h: 3.4, csr: 12.8, platform: 'Aerodrome', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.015, athDate: 'Apr 2024', athDrawdown: '-54.6%', atl: 0.0003, atlDate: 'Mar 2024', atlGain: '+2,166%', contract: '0x9a26F5433671751C3276a265243154461416312D', supply: '10.0B', fdv: '$68.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://base.org' }, about: 'Classic internet cat meme on Base.' },
+        { symbol: 'HIGHER', name: 'Aim Higher', pair: 'HIGHER/WETH', price: 0.038, change24h: 16.5, vol24h: 4.2, csr: 8.2, platform: 'Uniswap v3', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.11, athDate: 'Apr 2024', athDrawdown: '-65.4%', atl: 0.001, atlDate: 'Mar 2024', atlGain: '+3,700%', contract: '0x0578d8A44db98B23BF096A382e016e29a5CE0FFE', supply: '1.0B', fdv: '$38.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://aimhigher.net' }, about: 'Community culture movement token.' },
+        { symbol: 'MOG-BASE', name: 'Mog Coin Base', pair: 'MOG/WETH', price: 0.0000018, change24h: 9.8, vol24h: 7.1, csr: 6.4, platform: 'Aerodrome', createdDate: 'Apr 2024', age: '2 Yrs', ath: 0.0000024, athDate: 'Jul 2024', athDrawdown: '-25.0%', atl: 0.0000001, atlDate: 'Apr 2024', atlGain: '+1,700%', contract: '0x2da56E0409A65008cfC9FB100084B6F77B08B9B1', supply: '390T', fdv: '$702M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://mogcoin.xyz' }, about: 'Bridged cultural meme coin.' },
+        { symbol: 'BENJI', name: 'Basenji', pair: 'BENJI/WETH', price: 0.014, change24h: -2.0, vol24h: 1.9, csr: 15.2, platform: 'Uniswap v3', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.082, athDate: 'Apr 2024', athDrawdown: '-82.9%', atl: 0.0008, atlDate: 'Mar 2024', atlGain: '+1,650%', contract: '0xbc45647eA894030a4E9801Ec03479739FA2485F0', supply: '1.0B', fdv: '$14.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://basenjibase.com' }, about: 'First purebred dog on Base.' },
+        { symbol: 'CHOMP', name: 'Chompcoin', pair: 'CHOMP/WETH', price: 0.084, change24h: 32.4, vol24h: 5.8, csr: 14.1, platform: 'Aerodrome', createdDate: 'Apr 2024', age: '2 Yrs', ath: 0.14, athDate: 'Jun 2024', athDrawdown: '-40.0%', atl: 0.004, atlDate: 'Apr 2024', atlGain: '+2,000%', contract: '0xeD94F74487105565269F02521666B40869680327', supply: '100M', fdv: '$8.4M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://chompcoin.xyz' }, about: 'Cartoon shark community meme.' },
+        { symbol: 'SKI', name: 'Ski Mask Dog', pair: 'SKI/WETH', price: 0.045, change24h: 11.2, vol24h: 3.1, csr: 17.5, platform: 'Aerodrome', createdDate: 'May 2024', age: '2 Yrs', ath: 0.085, athDate: 'May 2024', athDrawdown: '-47.0%', atl: 0.003, atlDate: 'May 2024', atlGain: '+1,400%', contract: '0x7bB7000000000000000000000000000000000000', supply: '1.0B', fdv: '$45.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://base.org' }, about: 'Dog wearing ski mask community icon.' },
+        { symbol: 'LUNA-AI', name: 'Luna Virtual AI', pair: 'LUNA/WETH', price: 0.14, change24h: 45.1, vol24h: 16.5, csr: 10.4, platform: 'Uniswap v3', createdDate: 'May 2024', age: '2 Yrs', ath: 0.22, athDate: 'Oct 2024', athDrawdown: '-36.3%', atl: 0.008, atlDate: 'May 2024', atlGain: '+1,650%', contract: '0x8888000000000000000000000000000000008888', supply: '500M', fdv: '$70.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://virtuals.io' }, about: 'Autonomous generative AI companion on Base.' },
+        { symbol: 'ALBX', name: 'Alien Base', pair: 'ALBX/WETH', price: 0.032, change24h: 5.6, vol24h: 1.8, csr: 2.1, platform: 'Alien Base DEX', createdDate: 'Aug 2023', age: '3 Yrs', ath: 0.098, athDate: 'Apr 2024', athDrawdown: '-67.3%', atl: 0.002, atlDate: 'Aug 2023', atlGain: '+1,500%', contract: '0x1F22F45e4125d0B47a618991206A7C159828456a', supply: '300M', fdv: '$9.6M', socials: { twitter: 'https://twitter.com/AlienBaseDEX', telegram: 'https://t.me', website: 'https://alienbase.xyz' }, about: 'DeFi exchange tailored for Base.' },
+        { symbol: 'SEAM', name: 'Seamless Protocol', pair: 'SEAM/USDC', price: 1.62, change24h: -4.3, vol24h: 2.5, csr: 0.9, platform: 'Uniswap v3', createdDate: 'Dec 2023', age: '3 Yrs', ath: 14.80, athDate: 'Dec 2023', athDrawdown: '-89.0%', atl: 1.10, atlDate: 'Jul 2024', atlGain: '+47.2%', contract: '0x1C7a57FD615A7CA602d5a3CEfa6224Ac0098f480', supply: '100M', fdv: '$162M', socials: { twitter: 'https://twitter.com/SeamlessFi', telegram: 'https://t.me', website: 'https://seamlessprotocol.com' }, about: 'Native decentralized lending and borrowing.' },
+        { symbol: 'WELL', name: 'Moonwell Base', pair: 'WELL/USDC', price: 0.058, change24h: 8.2, vol24h: 4.1, csr: 0.7, platform: 'Aerodrome', createdDate: 'Jul 2023', age: '3 Yrs', ath: 0.11, athDate: 'Feb 2024', athDrawdown: '-47.2%', atl: 0.012, atlDate: 'Aug 2023', atlGain: '+383%', contract: '0xA88594D404727625A94370c98b6C99b24591822c', supply: '5.0B', fdv: '$290M', socials: { twitter: 'https://twitter.com/MoonwellDeFi', telegram: 'https://t.me', website: 'https://moonwell.fi' }, about: 'Open lending and liquidity protocol.' },
+        { symbol: 'MFER', name: 'mfercoin', pair: 'MFER/WETH', price: 0.024, change24h: -11.5, vol24h: 2.8, csr: 9.8, platform: 'Uniswap v3', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.31, athDate: 'Mar 2024', athDrawdown: '-92.2%', atl: 0.014, atlDate: 'Aug 2024', atlGain: '+71.4%', contract: '0xE3086852A4B120Ea717019623e1B270215f7B03B', supply: '1.0B', fdv: '$24.0M', socials: { twitter: 'https://twitter.com/sartoshi_nft', telegram: 'https://t.me', website: 'https://mfers.dev' }, about: 'Cultural memecoin created by Sartoshi.' },
+        { symbol: 'NORMIE', name: 'Normie Base', pair: 'NORMIE/WETH', price: 0.011, change24h: 6.4, vol24h: 1.4, csr: 22.0, platform: 'Aerodrome', createdDate: 'Mar 2024', age: '2 Yrs', ath: 0.22, athDate: 'Apr 2024', athDrawdown: '-95.0%', atl: 0.002, atlDate: 'Jun 2024', atlGain: '+450%', contract: '0x7F5d000000000000000000000000000000000000', supply: '1.0B', fdv: '$11.0M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://base.org' }, about: 'Re-launched community token.' },
+        { symbol: 'TYBG', name: 'Base God', pair: 'TYBG/WETH', price: 0.00018, change24h: 4.8, vol24h: 1.9, csr: 8.6, platform: 'Uniswap v3', createdDate: 'Jan 2024', age: '2 Yrs', ath: 0.00064, athDate: 'Mar 2024', athDrawdown: '-71.8%', atl: 0.00002, atlDate: 'Jan 2024', atlGain: '+800%', contract: '0x0d97F261b1e80d29995340003000000000000000', supply: '125B', fdv: '$22.5M', socials: { twitter: 'https://twitter.com/BaseGod1', telegram: 'https://t.me', website: 'https://basegod.fun' }, about: 'Meme culture religion token of Base.' },
+        { symbol: 'SPECTRA', name: 'Spectra Base', pair: 'SPECTRA/WETH', price: 0.072, change24h: 14.5, vol24h: 2.4, csr: 5.6, platform: 'Aerodrome', createdDate: 'May 2024', age: '2 Yrs', ath: 0.12, athDate: 'Jul 2024', athDrawdown: '-40.0%', atl: 0.015, atlDate: 'May 2024', atlGain: '+380%', contract: '0x9999000000000000000000000000000000009999', supply: '100M', fdv: '$7.2M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://spectra.finance' }, about: 'Yield derivatives on Base.' },
+        { symbol: 'FOXY', name: 'Foxy Base', pair: 'FOXY/WETH', price: 0.0125, change24h: 7.8, vol24h: 3.6, csr: 8.1, platform: 'Uniswap v3', createdDate: 'Apr 2024', age: '2 Yrs', ath: 0.031, athDate: 'Apr 2024', athDrawdown: '-59.6%', atl: 0.006, atlDate: 'Aug 2024', atlGain: '+108%', contract: '0x5555000000000000000000000000000000005555', supply: '10.0B', fdv: '$125M', socials: { twitter: 'https://twitter.com/FoxyLinea', telegram: 'https://t.me', website: 'https://foxy.fun' }, about: 'Fox meme mascot token.' }
       ]
     };
 
-    // Client-side Burner Keypair Generator
+    // MULTI-CHAIN NEW LAUNCHES
+    const INITIAL_NEW_LAUNCHES = {
+      SOL: [
+        { symbol: 'BABYCATE', name: 'Baby Cate Stonk', pair: 'BCATE/SOL', price: 0.00042, change24h: 310.5, vol24h: 0.42, csr: 38.5, platform: 'Stonk.fun', createdDate: '2 mins ago', age: '2m', ath: 0.00048, athDate: 'Just now', athDrawdown: '-12.5%', atl: 0.00008, atlDate: '2m ago', atlGain: '+425%', contract: 'Stonk9Cate11111111111111111111111111111111', supply: '1.0B', fdv: '$420K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://stonk.fun' }, about: 'Bonding launch on Stonk.fun.' },
+        { symbol: 'SHIELD', name: 'Shield of Nation', pair: 'SHIELD/SOL', price: 0.00185, change24h: 620.0, vol24h: 1.15, csr: 14.2, platform: 'Pump.fun', createdDate: '8 mins ago', age: '8m', ath: 0.0021, athDate: 'Just now', athDrawdown: '-11.9%', atl: 0.0002, atlDate: '8m ago', atlGain: '+825%', contract: 'PumpShield111111111111111111111111111111111', supply: '1.0B', fdv: '$1.85M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://pump.fun' }, about: 'Tactical browser action token.' }
+      ],
+      ETH: [
+        { symbol: 'NEXUS', name: 'Nexus Alpha Tech', pair: 'NEXUS/WETH', price: 0.0142, change24h: 92.4, vol24h: 0.85, csr: 8.5, platform: 'Uniswap v2', createdDate: '14 mins ago', age: '14m', ath: 0.016, athDate: '5m ago', athDrawdown: '-11.2%', atl: 0.006, atlDate: '14m ago', atlGain: '+136%', contract: '0xNexusAlpha000000000000000000000000000000', supply: '10.0M', fdv: '$142K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://x.com' }, about: 'Tech identity coin on Ethereum.' }
+      ],
+      BSC: [
+        { symbol: 'BNBPUP', name: 'BNB Puppy', pair: 'PUP/WBNB', price: 0.000024, change24h: 185.0, vol24h: 0.35, csr: 22.0, platform: 'Four.meme', createdDate: '5 mins ago', age: '5m', ath: 0.00003, athDate: 'Just now', athDrawdown: '-20.0%', atl: 0.00001, atlDate: '5m ago', atlGain: '+140%', contract: '0xPupBsc0000000000000000000000000000000000', supply: '1.0B', fdv: '$24K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://four.meme' }, about: 'Fair-launch meme token on Four.meme.' }
+      ],
+      ROBINHOOD: [
+        { symbol: 'HOODX', name: 'Hood Velocity', pair: 'HOODX/ETH', price: 0.045, change24h: 110.0, vol24h: 0.55, csr: 12.0, platform: 'Orbit Pool', createdDate: '18 mins ago', age: '18m', ath: 0.05, athDate: 'Just now', athDrawdown: '-10.0%', atl: 0.02, atlDate: '18m ago', atlGain: '+125%', contract: '0xOrbitHood0000000000000000000000000000000', supply: '10.0M', fdv: '$450K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com' }, about: 'Fast trading token on Robinhood Orbit L2.' }
+      ],
+      BASE: [
+        { symbol: 'BASECAT', name: 'Base Street Cat', pair: 'BCAT/WETH', price: 0.00085, change24h: 240.0, vol24h: 0.62, csr: 16.5, platform: 'Aerodrome', createdDate: '9 mins ago', age: '9m', ath: 0.001, athDate: '2m ago', athDrawdown: '-15.0%', atl: 0.0002, atlDate: '9m ago', atlGain: '+325%', contract: '0xBaseCat000000000000000000000000000000000', supply: '1.0B', fdv: '$850K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://base.org' }, about: 'Feline meme minted on Base L2.' }
+      ]
+    };
+
     function generateBurnerWallet() {
       const array = new Uint8Array(32);
       window.crypto.getRandomValues(array);
@@ -87,36 +188,17 @@
       const [searchQuery, setSearchQuery] = useState('');
       const [timeframe, setTimeframe] = useState('1m');
       const [buyAmount, setBuyAmount] = useState('0.1');
-      const [marketModalOpen, setMarketModalOpen] = useState(false);
       const [walletModalOpen, setWalletModalOpen] = useState(false);
       const [dossierModalOpen, setDossierModalOpen] = useState(false);
       const [orderNotification, setOrderNotification] = useState(null);
       const [wallet, setWallet] = useState(null);
-      const [balance, setBalance] = useState(2.00);
+      const [balance, setBalance] = useState(2.50);
       const [showPrivateKey, setShowPrivateKey] = useState(false);
+      const [liveNewLaunches, setLiveNewLaunches] = useState(INITIAL_NEW_LAUNCHES);
 
-      // MULTI-CHAIN NEW LAUNCHES WITH VERIFIED CAs
-      const [liveNewLaunches, setLiveNewLaunches] = useState({
-        SOL: [
-          { symbol: 'BABYCATE', name: 'Baby Cate Stonk', pair: 'BCATE/SOL', price: 0.00042, change24h: 310.5, vol24h: 0.42, csr: 38.5, platform: 'Stonk.fun', createdDate: '2 mins ago', age: '2m', ath: 0.00048, athDate: 'Just now', athDrawdown: '-12.5%', atl: 0.00008, atlDate: '2m ago', atlGain: '+425%', contract: 'Stonk9Cate11111111111111111111111111111111', supply: '1.0B', fdv: '$420K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://stonk.fun', docs: 'https://stonk.fun' }, about: 'Micro-cap meme coin launched on Stonk.fun bonding curve.' },
-          { symbol: 'SHIELD', name: 'Shield of the Nation', pair: 'SHIELD/SOL', price: 0.00185, change24h: 620.0, vol24h: 1.15, csr: 14.2, platform: 'Pump.fun', createdDate: '8 mins ago', age: '8m', ath: 0.0021, athDate: 'Just now', athDrawdown: '-11.9%', atl: 0.0002, atlDate: '8m ago', atlGain: '+825%', contract: 'PumpShield111111111111111111111111111111111', supply: '1.0B', fdv: '$1.85M', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://pump.fun', docs: 'https://pump.fun' }, about: 'Tactical browser action token minted on Pump.fun.' }
-        ],
-        ETH: [
-          { symbol: 'NEXUS', name: 'Nexus Alpha Tech', pair: 'NEXUS/WETH', price: 0.0142, change24h: 92.4, vol24h: 0.85, csr: 8.5, platform: 'Uniswap v2', createdDate: '14 mins ago', age: '14m', ath: 0.016, athDate: '5m ago', athDrawdown: '-11.2%', atl: 0.006, atlDate: '14m ago', atlGain: '+136%', contract: '0xNexusAlpha000000000000000000000000000000', supply: '10.0M', fdv: '$142K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://x.com', docs: 'https://x.com' }, about: 'Tech identity coin on Ethereum.' }
-        ],
-        BSC: [
-          { symbol: 'BNBPUP', name: 'BNB Puppy', pair: 'PUP/WBNB', price: 0.000024, change24h: 185.0, vol24h: 0.35, csr: 22.0, platform: 'Four.meme', createdDate: '5 mins ago', age: '5m', ath: 0.00003, athDate: 'Just now', athDrawdown: '-20.0%', atl: 0.00001, atlDate: '5m ago', atlGain: '+140%', contract: '0xPupBsc0000000000000000000000000000000000', supply: '1.0B', fdv: '$24K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://four.meme', docs: 'https://four.meme' }, about: 'Fair-launch meme token minted on Four.meme.' }
-        ],
-        ROBINHOOD: [
-          { symbol: 'HOODX', name: 'Hood Velocity', pair: 'HOODX/ETH', price: 0.045, change24h: 110.0, vol24h: 0.55, csr: 12.0, platform: 'Orbit Pool', createdDate: '18 mins ago', age: '18m', ath: 0.05, athDate: 'Just now', athDrawdown: '-10.0%', atl: 0.02, atlDate: '18m ago', atlGain: '+125%', contract: '0xOrbitHood0000000000000000000000000000000', supply: '10.0M', fdv: '$450K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://robinhood.com', docs: 'https://robinhood.com' }, about: 'Fast trading token for Robinhood Orbit L2.' }
-        ],
-        BASE: [
-          { symbol: 'BASECAT', name: 'Base Street Cat', pair: 'BCAT/WETH', price: 0.00085, change24h: 240.0, vol24h: 0.62, csr: 16.5, platform: 'Aerodrome', createdDate: '9 mins ago', age: '9m', ath: 0.001, athDate: '2m ago', athDrawdown: '-15.0%', atl: 0.0002, atlDate: '9m ago', atlGain: '+325%', contract: '0xBaseCat000000000000000000000000000000000', supply: '1.0B', fdv: '$850K', socials: { twitter: 'https://twitter.com', telegram: 'https://t.me', website: 'https://base.org', docs: 'https://base.org' }, about: 'Feline meme minted on Base L2.' }
-        ]
-      });
-
-      const canvasRef = useRef(null);
-      const containerRef = useRef(null);
+      const chartContainerRef = useRef(null);
+      const chartInstanceRef = useRef(null);
+      const candleSeriesRef = useRef(null);
 
       useEffect(() => {
         const saved = localStorage.getItem('tz_burner_wallet');
@@ -129,7 +211,7 @@
         const newWallet = generateBurnerWallet();
         setWallet(newWallet);
         localStorage.setItem('tz_burner_wallet', JSON.stringify(newWallet));
-        setBalance(2.50);
+        setBalance(3.00);
         setWalletModalOpen(true);
       };
 
@@ -151,130 +233,107 @@
         );
       }, [currentList, searchQuery]);
 
-      // FIXED CANVAS RENDERING ENGINE (RESPONSIVE & WORKING TIMEFRAMES)
+      // OFFICIAL TRADINGVIEW LIGHTWEIGHT CHARTS INTEGRATION (NO FLOATING BARS)
       useEffect(() => {
-        const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
+        if (!chartContainerRef.current) return;
 
-        const updateCanvasSize = () => {
-          canvas.width = container.clientWidth;
-          canvas.height = container.clientHeight;
+        // Clean up previous instance
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.remove();
+          chartInstanceRef.current = null;
+        }
+
+        const chart = LightweightCharts.createChart(chartContainerRef.current, {
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+          layout: {
+            background: { type: 'solid', color: '#09090b' },
+            textColor: '#71717a',
+            fontSize: 11,
+            fontFamily: 'monospace',
+          },
+          grid: {
+            vertLines: { color: '#18181b' },
+            horzLines: { color: '#18181b' },
+          },
+          crosshair: {
+            mode: LightweightCharts.CrosshairMode.Normal,
+          },
+          rightPriceScale: {
+            borderColor: '#27272a',
+            autoScale: true,
+          },
+          timeScale: {
+            borderColor: '#27272a',
+            timeVisible: true,
+            secondsVisible: timeframe === '1s',
+          },
+        });
+
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: '#10b981',
+          downColor: '#f43f5e',
+          borderVisible: false,
+          wickUpColor: '#10b981',
+          wickDownColor: '#f43f5e',
+        });
+
+        // Generate synthetic base data matching timeframe
+        const tfSeconds = { '1s': 1, '1m': 60, '5m': 300, '1h': 3600 };
+        const intervalSec = tfSeconds[timeframe] || 60;
+        const now = Math.floor(Date.now() / 1000);
+        let basePrice = activeToken.price;
+        const initialCandles = [];
+
+        for (let i = 80; i >= 0; i--) {
+          const time = now - i * intervalSec;
+          const delta = (Math.random() - 0.49) * (basePrice * 0.02);
+          const open = basePrice;
+          const close = basePrice + delta;
+          const high = Math.max(open, close) + Math.random() * (basePrice * 0.008);
+          const low = Math.min(open, close) - Math.random() * (basePrice * 0.008);
+          basePrice = close;
+          initialCandles.push({ time, open, high, low, close });
+        }
+
+        candleSeries.setData(initialCandles);
+        chart.timeScale().fitContent();
+
+        chartInstanceRef.current = chart;
+        candleSeriesRef.current = candleSeries;
+
+        // Sub-second tick update simulator
+        const tickInterval = setInterval(() => {
+          if (!candleSeriesRef.current) return;
+          const lastCandle = initialCandles[initialCandles.length - 1];
+          const tickDelta = (Math.random() - 0.49) * (lastCandle.close * 0.003);
+          const updatedClose = lastCandle.close + tickDelta;
+          const updated = {
+            ...lastCandle,
+            close: updatedClose,
+            high: Math.max(lastCandle.high, updatedClose),
+            low: Math.min(lastCandle.low, updatedClose),
+          };
+          candleSeriesRef.current.update(updated);
+        }, 1100);
+
+        const handleResize = () => {
+          if (chart && chartContainerRef.current) {
+            chart.applyOptions({
+              width: chartContainerRef.current.clientWidth,
+              height: chartContainerRef.current.clientHeight,
+            });
+          }
         };
-        updateCanvasSize();
-        window.addEventListener('resize', updateCanvasSize);
+        window.addEventListener('resize', handleResize);
 
-        const ctx = canvas.getContext('2d');
-        let animationId;
-
-        // Timeframe scaling parameters
-        const tfConfig = {
-          '1s': { speed: 0.003, volatility: 9, bars: 38 },
-          '1m': { speed: 0.001, volatility: 14, bars: 30 },
-          '5m': { speed: 0.0004, volatility: 22, bars: 24 },
-          '1h': { speed: 0.0001, volatility: 32, bars: 18 }
-        };
-        const cfg = tfConfig[timeframe] || tfConfig['1m'];
-
-        const render = () => {
-          const width = canvas.width;
-          const height = canvas.height;
-          ctx.clearRect(0, 0, width, height);
-
-          const rightMargin = 65;
-          const bottomMargin = 25;
-          const plotWidth = width - rightMargin;
-          const plotHeight = height - bottomMargin;
-
-          // 1. Grid
-          ctx.strokeStyle = '#18181b';
-          ctx.lineWidth = 1;
-          for (let x = 0; x < plotWidth; x += 50) {
-            ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, plotHeight); ctx.stroke();
-          }
-          for (let y = 0; y < plotHeight; y += 40) {
-            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(plotWidth, y); ctx.stroke();
-          }
-
-          // 2. Compute dynamic price candles
-          const candleCount = cfg.bars;
-          const candleWidth = plotWidth / candleCount;
-          let prevClose = plotHeight * 0.52;
-          let minPrice = Infinity;
-          let maxPrice = -Infinity;
-
-          const candles = [];
-          for (let i = 0; i < candleCount; i++) {
-            const change = (Math.sin(i * 0.7 + Date.now() * cfg.speed) + Math.cos(i * 0.3)) * cfg.volatility;
-            const open = prevClose;
-            const close = prevClose - change;
-            const high = Math.min(open, close) - Math.abs(change * 0.5);
-            const low = Math.max(open, close) + Math.abs(change * 0.5);
-            const isBull = close <= open;
-
-            candles.push({ open, close, high, low, isBull, x: i * candleWidth });
-            minPrice = Math.min(minPrice, high);
-            maxPrice = Math.max(maxPrice, low);
-            prevClose = close;
-          }
-
-          // 3. Draw Volume Histogram at bottom
-          for (let i = 0; i < candleCount; i++) {
-            const c = candles[i];
-            const vHeight = Math.abs(c.close - c.open) * 1.5 + 4;
-            ctx.fillStyle = c.isBull ? '#064e3b' : '#4c0519';
-            ctx.fillRect(c.x + 2, plotHeight - vHeight, candleWidth - 4, vHeight);
-          }
-
-          // 4. Draw Candlesticks
-          for (let i = 0; i < candleCount; i++) {
-            const c = candles[i];
-            ctx.strokeStyle = c.isBull ? '#10b981' : '#f43f5e';
-            ctx.beginPath();
-            ctx.moveTo(c.x + candleWidth / 2, c.high);
-            ctx.lineTo(c.x + candleWidth / 2, c.low);
-            ctx.stroke();
-
-            ctx.fillStyle = c.isBull ? '#10b981' : '#f43f5e';
-            ctx.fillRect(c.x + 2, Math.min(c.open, c.close), candleWidth - 4, Math.max(Math.abs(c.close - c.open), 2));
-          }
-
-          // 5. Right Y-Axis with live price scale
-          ctx.fillStyle = '#09090b';
-          ctx.fillRect(plotWidth, 0, rightMargin, height);
-          ctx.strokeStyle = '#27272a';
-          ctx.beginPath(); ctx.moveTo(plotWidth, 0); ctx.lineTo(plotWidth, height); ctx.stroke();
-
-          ctx.font = '10px monospace';
-          ctx.fillStyle = '#71717a';
-          for (let y = 20; y < plotHeight; y += 40) {
-            const simulatedP = (activeToken.price * (1 + (plotHeight / 2 - y) / plotHeight * 0.08)).toFixed(activeToken.price < 0.01 ? 6 : 2);
-            ctx.fillText(`$${simulatedP}`, plotWidth + 6, y + 3);
-          }
-
-          // 6. Live guideline pinned to active tick
-          ctx.strokeStyle = '#34d399';
-          ctx.setLineDash([4, 4]);
-          ctx.beginPath();
-          ctx.moveTo(0, prevClose);
-          ctx.lineTo(plotWidth, prevClose);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Live tag
-          ctx.fillStyle = '#10b981';
-          ctx.fillRect(plotWidth + 1, prevClose - 9, rightMargin - 2, 18);
-          ctx.fillStyle = '#000000';
-          ctx.font = 'bold 9px monospace';
-          ctx.fillText(`$${activeToken.price < 0.01 ? activeToken.price.toFixed(6) : activeToken.price.toFixed(2)}`, plotWidth + 4, prevClose + 3);
-
-          animationId = requestAnimationFrame(render);
-        };
-
-        render();
         return () => {
-          cancelAnimationFrame(animationId);
-          window.removeEventListener('resize', updateCanvasSize);
+          clearInterval(tickInterval);
+          window.removeEventListener('resize', handleResize);
+          if (chartInstanceRef.current) {
+            chartInstanceRef.current.remove();
+            chartInstanceRef.current = null;
+          }
         };
       }, [activeToken, timeframe]);
 
@@ -301,7 +360,7 @@
       return (
         <div className="flex h-screen w-screen flex-col bg-zinc-950 font-sans">
           
-          {/* HEADER BAR */}
+          {/* HEADER */}
           <header className="flex h-12 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4">
             <div className="flex items-center gap-3">
               <span className="flex h-6 w-6 items-center justify-center rounded bg-emerald-500 font-mono text-xs font-black text-black">0</span>
@@ -312,7 +371,7 @@
                   <button
                     key={key}
                     onClick={() => handleChainSwitch(key)}
-                    className={`px-2.5 py-1 text-xs font-mono rounded transition ${selectedChainKey === key ? 'bg-zinc-800 text-white font-bold border border-zinc-700' : 'text-zinc-400 hover:text-white'}`}
+                    className={`px-2.5 py-1 text-xs font-mono rounded transition cursor-pointer ${selectedChainKey === key ? 'bg-zinc-800 text-white font-bold border border-zinc-700' : 'text-zinc-400 hover:text-white'}`}
                   >
                     {chain.name}
                   </button>
@@ -323,7 +382,6 @@
             <div className="flex items-center gap-3 font-mono text-xs">
               <span className="text-emerald-400">● {activeChain.mevEngine}</span>
 
-              {/* EMBEDDED WALLET BUTTON */}
               {wallet ? (
                 <button
                   onClick={() => setWalletModalOpen(true)}
@@ -341,17 +399,10 @@
                   ⚡ CREATE WALLET
                 </button>
               )}
-
-              <button
-                onClick={() => setMarketModalOpen(true)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1 rounded font-bold border border-zinc-700 cursor-pointer"
-              >
-                BOOST
-              </button>
             </div>
           </header>
 
-          {/* MAIN TERMINAL BODY */}
+          {/* MAIN WORKSPACE */}
           <div className="flex flex-1 overflow-hidden relative">
             {orderNotification && (
               <div className="absolute top-4 right-8 z-50 bg-emerald-950 border border-emerald-500 text-emerald-300 px-4 py-2 rounded font-mono text-xs shadow-xl animate-bounce">
@@ -359,18 +410,18 @@
               </div>
             )}
 
-            {/* PAIRS DRAWER (LEFT COLUMN) */}
+            {/* PAIRS RADAR (LEFT COLUMN) */}
             <div className="w-80 border-r border-zinc-800 bg-zinc-950/70 flex flex-col font-mono text-xs">
               <div className="flex border-b border-zinc-800 bg-zinc-900/50">
                 <button
                   onClick={() => setSidebarTab('MAJOR')}
-                  className={`flex-1 py-2 font-bold text-center border-b-2 transition ${sidebarTab === 'MAJOR' ? 'border-emerald-400 text-white bg-zinc-800/40' : 'border-transparent text-zinc-400 hover:text-white'}`}
+                  className={`flex-1 py-2 font-bold text-center border-b-2 transition cursor-pointer ${sidebarTab === 'MAJOR' ? 'border-emerald-400 text-white bg-zinc-800/40' : 'border-transparent text-zinc-400 hover:text-white'}`}
                 >
                   ⚡ 100 MAJOR
                 </button>
                 <button
                   onClick={() => setSidebarTab('NEW_RADAR')}
-                  className={`flex-1 py-2 font-bold text-center border-b-2 transition flex items-center justify-center gap-1 ${sidebarTab === 'NEW_RADAR' ? 'border-amber-400 text-amber-300 bg-amber-950/20' : 'border-transparent text-zinc-400 hover:text-amber-300'}`}
+                  className={`flex-1 py-2 font-bold text-center border-b-2 transition flex items-center justify-center gap-1 cursor-pointer ${sidebarTab === 'NEW_RADAR' ? 'border-amber-400 text-amber-300 bg-amber-950/20' : 'border-transparent text-zinc-400 hover:text-amber-300'}`}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-ping"></span>
                   NEW LAUNCHES
@@ -380,7 +431,7 @@
               <div className="p-2.5 border-b border-zinc-800">
                 <input
                   type="text"
-                  placeholder={`Filter ${activeChain.name} tokens...`}
+                  placeholder={`Search ${activeChain.name} (${currentList.length} loaded)...`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-white outline-none focus:border-emerald-500 placeholder:text-zinc-600 text-xs"
@@ -419,10 +470,8 @@
               </div>
             </div>
 
-            {/* CHART DISPLAY (CENTER COLUMN) */}
+            {/* CHART DISPLAY (CENTER) */}
             <div className="flex flex-1 flex-col border-r border-zinc-800 overflow-hidden">
-              
-              {/* HEADER WITH DOSSIER TRIGGER */}
               <div className="flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-900/40 px-4">
                 <div className="flex items-center gap-3">
                   <img 
@@ -481,7 +530,7 @@
                 </div>
               </div>
 
-              {/* RESPONSIVE CHART CONTAINER WITH WORKING TIMEFRAMES */}
+              {/* TIMEFRAME SELECTOR + FIXED TRADINGVIEW CHART CONTAINER */}
               <div className="flex-1 bg-zinc-950 flex flex-col justify-between overflow-hidden relative">
                 <div className="flex items-center justify-between border-b border-zinc-900 py-1.5 px-3 font-mono text-xs text-zinc-400 z-10 bg-zinc-950">
                   <div className="flex gap-1 bg-zinc-900 p-0.5 rounded border border-zinc-800">
@@ -495,20 +544,18 @@
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] text-emerald-400">
+                  <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-mono">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    SUB-SECOND INGEST ({timeframe.toUpperCase()})
+                    TRADINGVIEW LIGHTWEIGHT CORE ACTIVE
                   </div>
                 </div>
 
-                {/* THE FIXED FULL-HEIGHT CANVAS */}
-                <div ref={containerRef} className="flex-1 w-full relative">
-                  <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
-                </div>
+                {/* DEDICATED DOM NODE FOR TRADINGVIEW ENGINE */}
+                <div ref={chartContainerRef} className="flex-1 w-full relative" />
               </div>
             </div>
 
-            {/* 1-CLICK SNIPER DOCK (RIGHT COLUMN) */}
+            {/* 1-CLICK SNIPER DOCK (RIGHT) */}
             <div className="w-72 p-4 font-mono text-xs flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -559,60 +606,35 @@
                 </div>
               )}
             </div>
-
           </div>
 
-          {/* COMPREHENSIVE TOKEN DOSSIER MODAL WITH BANNER */}
+          {/* TOKEN DOSSIER MODAL WITH FULL CA & STATS */}
           {dossierModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 font-mono">
               <div className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative border border-emerald-500/30">
-                
-                {/* Visual Banner */}
-                <div className="h-32 w-full relative overflow-hidden rounded-t-2xl bg-zinc-900">
-                  <img src={getBannerSvg(activeToken.name, activeChain.name)} alt="Banner" className="w-full h-full object-cover" />
-                  <button 
-                    onClick={() => setDossierModalOpen(false)} 
-                    className="absolute top-3 right-3 bg-black/70 hover:bg-black text-white p-2 rounded-full cursor-pointer z-10"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Profile Header */}
-                <div className="px-6 -mt-8 relative flex items-end gap-4 pb-4 border-b border-zinc-800">
-                  <img 
-                    src={getAvatarSvg(activeToken.symbol)} 
-                    alt={activeToken.symbol} 
-                    className="w-16 h-16 rounded-xl border-2 border-emerald-500 bg-zinc-900 object-cover shadow-2xl"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-black text-white">{activeToken.name}</h2>
-                      <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-bold">
-                        {activeToken.symbol}
-                      </span>
+                <div className="p-6 border-b border-zinc-800 flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <img src={getAvatarSvg(activeToken.symbol)} alt={activeToken.symbol} className="w-12 h-12 rounded-xl border border-emerald-500" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-black text-white">{activeToken.name}</h2>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-bold">
+                          {activeToken.symbol}
+                        </span>
+                      </div>
+                      <div className="text-xs text-zinc-400 mt-0.5">{activeToken.pair} • Minted via {activeToken.platform}</div>
                     </div>
-                    <div className="text-xs text-zinc-400 mt-0.5">{activeToken.pair} • Minted on {activeToken.platform}</div>
                   </div>
+                  <button onClick={() => setDossierModalOpen(false)} className="bg-zinc-900 hover:bg-zinc-800 text-white p-2 rounded-lg cursor-pointer">✕</button>
                 </div>
 
-                {/* Content */}
                 <div className="p-6 space-y-6 text-xs">
                   <div>
-                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">OFFICIAL COMMUNITY LINKS</h3>
-                    <div className="grid grid-cols-4 gap-2">
-                      <a href={activeToken.socials?.twitter} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-zinc-600 text-white font-bold transition">
-                        𝕏 Twitter
-                      </a>
-                      <a href={activeToken.socials?.telegram} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-sky-500 text-sky-400 font-bold transition">
-                        ✈ Telegram
-                      </a>
-                      <a href={activeToken.socials?.website} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-emerald-500 text-emerald-400 font-bold transition">
-                        🌐 Website
-                      </a>
-                      <a href={activeToken.socials?.docs} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-indigo-500 text-indigo-400 font-bold transition">
-                        📄 Whitepaper
-                      </a>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">OFFICIAL SOCIAL LINKS</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      <a href={activeToken.socials?.twitter} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-zinc-600 text-white font-bold transition">𝕏 Twitter</a>
+                      <a href={activeToken.socials?.telegram} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-sky-500 text-sky-400 font-bold transition">✈ Telegram</a>
+                      <a href={activeToken.socials?.website} target="_blank" rel="noreferrer" className="flex items-center justify-center py-2 bg-zinc-900 border border-zinc-800 rounded-lg hover:border-emerald-500 text-emerald-400 font-bold transition">🌐 Website</a>
                     </div>
                   </div>
 
@@ -638,13 +660,13 @@
                   </div>
 
                   <div>
-                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">PROJECT BACKGROUND</h3>
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">PROJECT NARRATIVE</h3>
                     <div className="bg-zinc-900/40 border border-zinc-800/80 p-3.5 rounded-xl leading-relaxed text-zinc-300">
                       {activeToken.about}
                     </div>
                   </div>
 
-                  {/* CA WITH 1-CLICK CLIPBOARD COPY */}
+                  {/* CONTRACT ADDRESS WITH CLIPBOARD COPY */}
                   <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl flex justify-between items-center">
                     <div>
                       <div className="text-[10px] text-zinc-400">CONTRACT ADDRESS (CA)</div>
@@ -662,7 +684,7 @@
             </div>
           )}
 
-          {/* WALLET DETAILS MODAL */}
+          {/* WALLET MODAL */}
           {walletModalOpen && wallet && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-mono">
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
@@ -718,34 +740,6 @@
                     >
                       New Key
                     </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* MARKETPLACE BOOST MODAL */}
-          {marketModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 font-mono">
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 max-w-md w-full">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-white">BOOST & VERIFY TOKEN</h3>
-                  <button onClick={() => setMarketModalOpen(false)} className="text-zinc-400 hover:text-white cursor-pointer">✕</button>
-                </div>
-                <div className="space-y-3">
-                  <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
-                    <div>
-                      <div className="font-bold text-white">Alpha Blitz (24h)</div>
-                      <div className="text-xs text-zinc-400">5x Trending Boost</div>
-                    </div>
-                    <button onClick={() => { alert('Boost Activated!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400 cursor-pointer">$69</button>
-                  </div>
-                  <div className="border border-zinc-800 p-3 rounded-lg bg-zinc-900/40 flex justify-between items-center">
-                    <div>
-                      <div className="font-bold text-white">Anti-Cabal Pass</div>
-                      <div className="text-xs text-zinc-400">Full Cluster Audit Badge</div>
-                    </div>
-                    <button onClick={() => { alert('Audit Queued!'); setMarketModalOpen(false); }} className="bg-emerald-500 text-black font-bold px-3 py-1.5 rounded text-xs hover:bg-emerald-400 cursor-pointer">$79</button>
                   </div>
                 </div>
               </div>
